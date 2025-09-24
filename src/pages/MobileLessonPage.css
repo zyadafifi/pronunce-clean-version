@@ -707,6 +707,86 @@
   animation: spin 1s linear infinite;
 }
 
+/* Processing state - Custom spinner design */
+.mic-btn.processing {
+  background: linear-gradient(135deg, #63a29b 0%, #4a8b82 100%) !important;
+  color: #fff !important;
+  animation: none !important;
+  box-shadow: 0 4px 12px rgba(99, 162, 155, 0.3);
+}
+
+.mic-btn.processing .processing-spinner {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #63a29b 0%, #4a8b82 100%);
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(99, 162, 155, 0.3);
+}
+
+.mic-btn.processing .processing-spinner span {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background-color: white;
+  border-radius: 50%;
+  animation: processing-dots 1.4s linear infinite;
+}
+
+.mic-btn.processing .processing-spinner span:nth-child(1) {
+  animation-delay: 0s;
+  transform: rotate(0deg) translateX(20px);
+}
+
+.mic-btn.processing .processing-spinner span:nth-child(2) {
+  animation-delay: -0.175s;
+  transform: rotate(45deg) translateX(20px);
+}
+
+.mic-btn.processing .processing-spinner span:nth-child(3) {
+  animation-delay: -0.35s;
+  transform: rotate(90deg) translateX(20px);
+}
+
+.mic-btn.processing .processing-spinner span:nth-child(4) {
+  animation-delay: -0.525s;
+  transform: rotate(135deg) translateX(20px);
+}
+
+.mic-btn.processing .processing-spinner span:nth-child(5) {
+  animation-delay: -0.7s;
+  transform: rotate(180deg) translateX(20px);
+}
+
+.mic-btn.processing .processing-spinner span:nth-child(6) {
+  animation-delay: -0.875s;
+  transform: rotate(225deg) translateX(20px);
+}
+
+.mic-btn.processing .processing-spinner span:nth-child(7) {
+  animation-delay: -1.05s;
+  transform: rotate(270deg) translateX(20px);
+}
+
+.mic-btn.processing .processing-spinner span:nth-child(8) {
+  animation-delay: -1.225s;
+  transform: rotate(315deg) translateX(20px);
+}
+
+@keyframes processing-dots {
+  0% {
+    opacity: 1;
+    transform: rotate(0deg) translateX(20px);
+  }
+  100% {
+    opacity: 0.3;
+    transform: rotate(360deg) translateX(20px);
+  }
+}
+
 @keyframes pulse {
   0%,
   100% {
