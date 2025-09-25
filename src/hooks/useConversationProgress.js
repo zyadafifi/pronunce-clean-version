@@ -31,7 +31,12 @@ export const useConversationProgress = (conversationId, totalSentences) => {
   const completeSentence = useCallback(
     (sentenceIndex, score) => {
       // Update local state
-      setCompletedSentences((prev) => new Set([...prev, sentenceIndex]));
+      const newCompletedSentences = new Set([
+        ...completedSentences,
+        sentenceIndex,
+      ]);
+      setCompletedSentences(newCompletedSentences);
+
       setSentenceScores((prev) => {
         const newScores = [...prev];
         newScores[sentenceIndex] = score;
@@ -42,26 +47,41 @@ export const useConversationProgress = (conversationId, totalSentences) => {
       const sentenceId = `${conversationId}-${sentenceIndex}`;
       updateSentenceProgress(sentenceId, true, score);
 
-      // Move to next sentence
+      // Check if conversation is now completed
+      const isConversationNowCompleted =
+        newCompletedSentences.size === totalSentences;
+
+      // Move to next sentence or complete conversation
       if (sentenceIndex < totalSentences - 1) {
         setCurrentSentenceIndex(sentenceIndex + 1);
-      } else {
-        // Conversation completed
+      }
+
+      // If this is the last sentence or all sentences are completed, mark conversation as complete
+      if (isConversationNowCompleted) {
+        const allScores = [...sentenceScores];
+        allScores[sentenceIndex] = score;
+
         const finalScore =
-          sentenceScores.length > 0
+          allScores.length > 0
             ? Math.round(
-                sentenceScores.reduce((sum, score) => sum + score, 0) /
-                  sentenceScores.length
+                allScores.reduce((sum, s) => sum + s, 0) / allScores.length
               )
             : score;
 
+        // Mark conversation as completed with final score
         updateConversationProgress(conversationId, 100, finalScore);
+
+        // Trigger conversation completion callback if provided
+        if (window.onConversationCompleted) {
+          window.onConversationCompleted(conversationId, finalScore);
+        }
       }
     },
     [
       conversationId,
       totalSentences,
       sentenceScores,
+      completedSentences,
       updateSentenceProgress,
       updateConversationProgress,
     ]
@@ -97,5 +117,3 @@ export const useConversationProgress = (conversationId, totalSentences) => {
     setCurrentSentenceIndex,
   };
 };
-
-

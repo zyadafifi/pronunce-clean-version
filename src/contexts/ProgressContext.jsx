@@ -163,6 +163,50 @@ class ProgressManager {
     );
   }
 
+  // Calculate topic progress based on conversation completion
+  calculateTopicProgress(topicId, topicData) {
+    if (
+      !topicData ||
+      !topicData.conversations ||
+      topicData.conversations.length === 0
+    ) {
+      return 0;
+    }
+
+    const totalConversations = topicData.conversations.length;
+    const completedConversations = topicData.conversations.filter(
+      (conversation) => this.isConversationCompleted(conversation.id)
+    ).length;
+
+    return Math.round((completedConversations / totalConversations) * 100);
+  }
+
+  // Update topic progress and check for completion
+  updateTopicProgress(topicId, topicData) {
+    if (!this.progress.topics) {
+      this.progress.topics = {};
+    }
+
+    const progress = this.calculateTopicProgress(topicId, topicData);
+    const isCompleted = progress >= 100;
+
+    // Update topic progress
+    this.progress.topics[topicId] = {
+      ...this.progress.topics[topicId],
+      progress: progress,
+      completed: isCompleted,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    // If topic is completed for the first time, mark completion date
+    if (isCompleted && !this.progress.topics[topicId].completedAt) {
+      this.progress.topics[topicId].completedAt = new Date().toISOString();
+    }
+
+    this.saveProgress();
+    return { progress, completed: isCompleted };
+  }
+
   // Check if all topics in a lesson are completed
   isLessonCompleteByTopics(lessonNumber, lessonsData) {
     // Find the lesson data
@@ -173,6 +217,43 @@ class ProgressManager {
 
     // Check if all topics in the lesson are completed
     return lesson.topics.every((topic) => this.isTopicCompleted(topic.id));
+  }
+
+  // Calculate lesson progress based on topic completion
+  calculateLessonProgressByTopics(lessonNumber, lessonsData) {
+    const lesson = lessonsData.find((l) => l.lessonNumber === lessonNumber);
+    if (!lesson || !lesson.topics || lesson.topics.length === 0) {
+      return 0;
+    }
+
+    const totalTopics = lesson.topics.length;
+    const completedTopics = lesson.topics.filter((topic) =>
+      this.isTopicCompleted(topic.id)
+    ).length;
+
+    return Math.round((completedTopics / totalTopics) * 100);
+  }
+
+  // Update lesson progress based on topic completion
+  updateLessonProgressByTopics(lessonNumber, lessonsData) {
+    const progress = this.calculateLessonProgressByTopics(
+      lessonNumber,
+      lessonsData
+    );
+    const isCompleted = progress >= 100;
+
+    // Update lesson progress
+    if (isCompleted && !this.progress[lessonNumber]) {
+      this.progress[lessonNumber] = {
+        completed: true,
+        completedAt: new Date().toISOString(),
+        progress: 100,
+        completedByTopics: true,
+      };
+      this.saveProgress();
+    }
+
+    return { progress, completed: isCompleted };
   }
 
   // Get completion status for all lessons
@@ -232,6 +313,39 @@ class ProgressManager {
     localStorage.removeItem(this.STORAGE_KEY);
   }
 
+  // Batch update all topics and lessons progress
+  batchUpdateProgress(lessonsData) {
+    if (!lessonsData || !lessonsData.lessons) return;
+
+    let hasUpdates = false;
+
+    lessonsData.lessons.forEach((lesson) => {
+      if (lesson.topics) {
+        lesson.topics.forEach((topic) => {
+          const oldProgress = this.progress.topics?.[topic.id]?.progress || 0;
+          const result = this.updateTopicProgress(topic.id, topic);
+          if (result.progress !== oldProgress) {
+            hasUpdates = true;
+          }
+        });
+
+        // Update lesson progress based on topics
+        const oldLessonCompleted = this.isLessonCompleted(lesson.lessonNumber);
+        const lessonResult = this.updateLessonProgressByTopics(
+          lesson.lessonNumber,
+          lessonsData.lessons
+        );
+        if (lessonResult.completed && !oldLessonCompleted) {
+          hasUpdates = true;
+        }
+      }
+    });
+
+    if (hasUpdates) {
+      console.log("Progress updated for multiple topics and lessons");
+    }
+  }
+
   // Get progress statistics
   getProgressStats(lessonsData) {
     const totalLessons = lessonsData.length;
@@ -288,6 +402,37 @@ export const ProgressProvider = ({ children }) => {
     setProgress(progressManager.getAllCompletionStatus());
   };
 
+  const updateTopicProgress = (topicId, topicData) => {
+    const result = progressManager.updateTopicProgress(topicId, topicData);
+    setProgress(progressManager.getAllCompletionStatus());
+    return result;
+  };
+
+  const calculateTopicProgress = (topicId, topicData) => {
+    return progressManager.calculateTopicProgress(topicId, topicData);
+  };
+
+  const updateLessonProgressByTopics = (lessonNumber, lessonsData) => {
+    const result = progressManager.updateLessonProgressByTopics(
+      lessonNumber,
+      lessonsData
+    );
+    setProgress(progressManager.getAllCompletionStatus());
+    return result;
+  };
+
+  const calculateLessonProgressByTopics = (lessonNumber, lessonsData) => {
+    return progressManager.calculateLessonProgressByTopics(
+      lessonNumber,
+      lessonsData
+    );
+  };
+
+  const batchUpdateProgress = (lessonsData) => {
+    progressManager.batchUpdateProgress(lessonsData);
+    setProgress(progressManager.getAllCompletionStatus());
+  };
+
   const clearProgress = () => {
     progressManager.clearProgress();
     setProgress(progressManager.getAllCompletionStatus());
@@ -299,30 +444,49 @@ export const ProgressProvider = ({ children }) => {
 
   // New functions for PracticePage
   const updateConversationProgress = (conversationId, percentage, score) => {
-    if (!progress.conversations) {
-      progress.conversations = {};
+    // Update progressManager's data (this is what gets saved to localStorage)
+    if (!progressManager.progress.conversations) {
+      progressManager.progress.conversations = {};
     }
-    progress.conversations[conversationId] = {
-      ...progress.conversations[conversationId],
+
+    progressManager.progress.conversations[conversationId] = {
+      ...progressManager.progress.conversations[conversationId],
       progress: percentage,
       score: score,
       completed: percentage >= 100,
+      completedAt: percentage >= 100 ? new Date().toISOString() : undefined,
     };
-    setProgress({ ...progress });
+
+    // Save to localStorage
     progressManager.saveProgress();
+
+    // Update React state to match progressManager
+    setProgress(progressManager.getAllCompletionStatus());
+
+    console.log(
+      `updateConversationProgress: Conversation ${conversationId} updated - progress: ${percentage}%, score: ${score}, completed: ${
+        percentage >= 100
+      }`
+    );
   };
 
   const updateSentenceProgress = (sentenceId, completed, score) => {
-    if (!progress.sentences) {
-      progress.sentences = {};
+    // Update progressManager's data (this is what gets saved to localStorage)
+    if (!progressManager.progress.sentences) {
+      progressManager.progress.sentences = {};
     }
-    progress.sentences[sentenceId] = {
+
+    progressManager.progress.sentences[sentenceId] = {
       completed,
       score,
       completedAt: completed ? new Date().toISOString() : null,
     };
-    setProgress({ ...progress });
+
+    // Save to localStorage
     progressManager.saveProgress();
+
+    // Update React state to match progressManager
+    setProgress(progressManager.getAllCompletionStatus());
   };
 
   const getConversationProgress = (conversationId) => {
@@ -342,7 +506,13 @@ export const ProgressProvider = ({ children }) => {
     completeTopic,
     clearProgress,
     getProgressStats,
-    // New functions for PracticePage
+    // New topic-level functions
+    updateTopicProgress,
+    calculateTopicProgress,
+    updateLessonProgressByTopics,
+    calculateLessonProgressByTopics,
+    batchUpdateProgress,
+    // Functions for PracticePage
     currentLesson,
     currentTopic,
     currentConversation,

@@ -20,8 +20,13 @@ import "./MobileLessonPage.css";
 const MobileLessonPage = () => {
   const { lessonNumber, topicId, conversationId } = useParams();
   const navigate = useNavigate();
-  const { setCurrentLesson, setCurrentTopic, setCurrentConversation } =
-    useProgress();
+  const {
+    setCurrentLesson,
+    setCurrentTopic,
+    setCurrentConversation,
+    updateTopicProgress,
+    updateLessonProgressByTopics,
+  } = useProgress();
 
   const [lesson, setLesson] = useState(null);
   const [topic, setTopic] = useState(null);
@@ -31,6 +36,8 @@ const MobileLessonPage = () => {
   const [showPracticeOverlay, setShowPracticeOverlay] = useState(false);
   const [showReplayOverlay, setShowReplayOverlay] = useState(false);
   const [showCompletionCard, setShowCompletionCard] = useState(false);
+  const [topicCompletedStatus, setTopicCompletedStatus] = useState(false);
+  const [lessonCompletedStatus, setLessonCompletedStatus] = useState(false);
   const [showResultsDialog, setShowResultsDialog] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -316,6 +323,59 @@ const MobileLessonPage = () => {
     retryVideoLoad,
   ]);
 
+  // Handle conversation completion and update topic/lesson progress
+  const handleConversationCompleted = useCallback(
+    (completedConversationId, finalScore) => {
+      if (topic && lesson && lessonsData) {
+        console.log(
+          `Conversation ${completedConversationId} completed with score: ${finalScore}%`
+        );
+
+        // Update topic progress based on all conversations in the topic
+        const topicResult = updateTopicProgress(parseInt(topicId), topic);
+        console.log(`Topic ${topicId} progress updated:`, topicResult);
+
+        // If topic is completed, update lesson progress
+        if (topicResult.completed) {
+          console.log(
+            `Topic ${topicId} completed! Updating lesson progress...`
+          );
+          setTopicCompletedStatus(true);
+
+          const lessonResult = updateLessonProgressByTopics(
+            parseInt(lessonNumber),
+            lessonsData.lessons
+          );
+          console.log(`Lesson ${lessonNumber} progress updated:`, lessonResult);
+
+          if (lessonResult.completed) {
+            console.log(
+              `🎉 Lesson ${lessonNumber} completed! Next lesson should be unlocked.`
+            );
+            setLessonCompletedStatus(true);
+          }
+        }
+      }
+    },
+    [
+      topic,
+      lesson,
+      lessonsData,
+      topicId,
+      lessonNumber,
+      updateTopicProgress,
+      updateLessonProgressByTopics,
+    ]
+  );
+
+  // Set up global conversation completion callback
+  useEffect(() => {
+    window.onConversationCompleted = handleConversationCompleted;
+    return () => {
+      window.onConversationCompleted = null;
+    };
+  }, [handleConversationCompleted]);
+
   // Show completion card only when conversation is actually completed
   useEffect(() => {
     if (
@@ -323,10 +383,23 @@ const MobileLessonPage = () => {
       currentSentenceIndex >= conversation?.sentences?.length - 1
     ) {
       setShowCompletionCard(true);
+
+      // Trigger conversation completion handling
+      if (conversation && topic && lesson) {
+        handleConversationCompleted(conversation.id, overallScore);
+      }
     } else {
       setShowCompletionCard(false);
     }
-  }, [isConversationCompleted, currentSentenceIndex, conversation]);
+  }, [
+    isConversationCompleted,
+    currentSentenceIndex,
+    conversation,
+    topic,
+    lesson,
+    overallScore,
+    handleConversationCompleted,
+  ]);
 
   // Detect if we're on mobile and set initial overlay state
   useEffect(() => {
@@ -735,6 +808,8 @@ const MobileLessonPage = () => {
           show={showCompletionCard}
           overallScore={overallScore}
           onBackToLessons={handleBackToLessons}
+          topicCompleted={topicCompletedStatus}
+          lessonCompleted={lessonCompletedStatus}
         />
 
         {/* Alert Container */}

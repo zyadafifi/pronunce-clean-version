@@ -6,8 +6,14 @@ import "./HomePage.css";
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const { getLessonProgress, isLessonCompleted, isLessonUnlocked } =
-    useProgress();
+  const {
+    getLessonProgress,
+    isLessonCompleted,
+    isLessonUnlocked,
+    calculateLessonProgressByTopics,
+    updateLessonProgressByTopics,
+    batchUpdateProgress,
+  } = useProgress();
   const [lessons, setLessons] = useState([]);
   const [lessonsData, setLessonsData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -308,12 +314,29 @@ const HomePage = () => {
     }
 
     const updatedLessons = lessonsData.lessons.map((lesson, index) => {
-      const isCompleted = isLessonCompleted(lesson.lessonNumber);
+      // Use topic-based progress calculation
+      const topicBasedProgress = calculateLessonProgressByTopics(
+        lesson.lessonNumber,
+        lessonsData.lessons
+      );
+      const isCompleted =
+        isLessonCompleted(lesson.lessonNumber) || topicBasedProgress >= 100;
       const isUnlocked = isLessonUnlocked(
         lesson.lessonNumber,
         lessonsData.lessons
       );
-      const progress = getLessonProgress(lesson.lessonNumber);
+      const progress = Math.max(
+        getLessonProgress(lesson.lessonNumber),
+        topicBasedProgress
+      );
+
+      // Update lesson progress if topics indicate completion but lesson isn't marked complete
+      if (
+        topicBasedProgress >= 100 &&
+        !isLessonCompleted(lesson.lessonNumber)
+      ) {
+        updateLessonProgressByTopics(lesson.lessonNumber, lessonsData.lessons);
+      }
 
       // Add avatar URLs for each lesson
       const avatarUrls = [
@@ -349,12 +372,15 @@ const HomePage = () => {
     setLessons(updatedLessons);
   }, [getLessonProgress, isLessonCompleted, isLessonUnlocked, lessonsData]);
 
-  // Update lessons when data is loaded
+  // Update lessons when data is loaded and batch update progress
   useEffect(() => {
     if (lessonsData) {
+      // First batch update all progress to ensure consistency
+      batchUpdateProgress(lessonsData);
+      // Then update the lessons display
       updateLessonsWithProgress();
     }
-  }, [lessonsData, updateLessonsWithProgress]);
+  }, [lessonsData, updateLessonsWithProgress, batchUpdateProgress]);
 
   // Render lessons path - exact copy from script.js
   const renderLessonsPath = useCallback(() => {

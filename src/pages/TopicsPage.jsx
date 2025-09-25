@@ -7,7 +7,13 @@ import "./TopicsPage.css";
 const TopicsPage = () => {
   const navigate = useNavigate();
   const { lessonNumber } = useParams();
-  const { isConversationCompleted, isTopicCompleted } = useProgress();
+  const {
+    isConversationCompleted,
+    isTopicCompleted,
+    calculateTopicProgress,
+    updateTopicProgress,
+    calculateLessonProgressByTopics,
+  } = useProgress();
 
   const [currentLesson, setCurrentLesson] = useState(null);
   const [topicsData, setTopicsData] = useState([]);
@@ -37,7 +43,7 @@ const TopicsPage = () => {
     loadLessonsData();
   }, []);
 
-  // Load lesson data
+  // Load lesson data and update topic progress
   useEffect(() => {
     const loadLessonData = async () => {
       if (!lessonsData?.lessons) return;
@@ -56,6 +62,11 @@ const TopicsPage = () => {
 
         setCurrentLesson(lesson);
         setTopicsData(lesson.topics || []);
+
+        // Update progress for all topics in this lesson
+        lesson.topics?.forEach((topic) => {
+          updateTopicProgress(topic.id, topic);
+        });
       } catch (error) {
         console.error("Error loading lesson data:", error);
       } finally {
@@ -64,7 +75,7 @@ const TopicsPage = () => {
     };
 
     loadLessonData();
-  }, [lessonNumber, lessonsData]);
+  }, [lessonNumber, lessonsData, updateTopicProgress]);
 
   // Force styles with useLayoutEffect (before paint)
   useLayoutEffect(() => {
@@ -139,40 +150,25 @@ const TopicsPage = () => {
     forceStyles();
   }, [topicsData]);
 
-  // Calculate lesson progress
+  // Calculate lesson progress based on topic completion
   const calculateLessonProgress = () => {
-    if (!topicsData.length) return 0;
-    let totalConversations = 0;
-    let completedConversations = 0;
-
-    topicsData.forEach((topic) => {
-      topic.conversations?.forEach((conversation) => {
-        totalConversations++;
-        if (isConversationCompleted(conversation.id)) {
-          completedConversations++;
-        }
-      });
-    });
-
-    return totalConversations > 0
-      ? Math.round((completedConversations / totalConversations) * 100)
-      : 0;
+    if (!currentLesson || !lessonsData) return 0;
+    return calculateLessonProgressByTopics(
+      currentLesson.lessonNumber,
+      lessonsData.lessons
+    );
   };
 
-  // Check if topic is locked
+  // Check if topic is locked (must complete previous topic first)
   const isTopicLocked = (topic, index) => {
-    if (index === 0) return false;
+    if (index === 0) return false; // First topic is always unlocked
     const previousTopic = topicsData[index - 1];
-    return !isTopicCompleted(previousTopic);
+    return !isTopicCompleted(previousTopic.id);
   };
 
-  // Calculate topic progress
-  const calculateTopicProgress = (topic) => {
-    if (!topic.conversations?.length) return 0;
-    const completedCount = topic.conversations.filter((conversation) =>
-      isConversationCompleted(conversation.id)
-    ).length;
-    return Math.round((completedCount / topic.conversations.length) * 100);
+  // Calculate topic progress using the context function
+  const getTopicProgress = (topic) => {
+    return calculateTopicProgress(topic.id, topic);
   };
 
   // Toggle topic expansion
@@ -217,7 +213,7 @@ const TopicsPage = () => {
     return topicsData.map((topic, index) => {
       const isLocked = isTopicLocked(topic, index);
       const isCompleted = isTopicCompleted(topic);
-      const progress = calculateTopicProgress(topic);
+      const progress = getTopicProgress(topic);
       const isExpanded = expandedTopics.has(topic.id);
 
       return (
