@@ -47,14 +47,16 @@ export function useVideoPlayer() {
     setCurrentTime(time);
   }, []);
 
-  // Set video source
+  // Set video source with optimized loading
   const setVideoSource = useCallback((src) => {
     if (!videoRef.current) return;
 
     setIsLoading(true);
     setError(null);
 
+    // Optimized video loading for seamless playback
     videoRef.current.src = src;
+    videoRef.current.preload = "auto";
     videoRef.current.load();
   }, []);
 
@@ -95,6 +97,42 @@ export function useVideoPlayer() {
     setHasUserInteracted(true);
   }, []);
 
+  // Additional handlers for mobile compatibility
+  const handleLoadStart = useCallback(() => {
+    setIsLoading(true);
+  }, []);
+
+  const handleCanPlay = useCallback(() => {
+    setIsLoading(false);
+  }, []);
+
+  const replay = useCallback(() => {
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = 0;
+    play();
+  }, [play]);
+
+  const setVolume = useCallback((volume) => {
+    if (!videoRef.current) return;
+    videoRef.current.volume = volume;
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    if (!videoRef.current) return;
+    videoRef.current.muted = !videoRef.current.muted;
+  }, []);
+
+  const formatTime = useCallback((time) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }, []);
+
+  const getProgress = useCallback(() => {
+    if (!videoRef.current || !duration) return 0;
+    return (currentTime / duration) * 100;
+  }, [currentTime, duration]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -111,19 +149,26 @@ export function useVideoPlayer() {
     currentTime,
     duration,
     hasUserInteracted,
-    isLoading,
-    error,
+    isLoading: isLoading,
+    hasError: error,
     play,
     pause,
+    replay,
     togglePlayPause,
     seekTo,
     setVideoSource,
+    setVolume,
+    toggleMute,
+    formatTime,
+    getProgress,
     handleLoadedMetadata,
     handleTimeUpdate,
     handlePlay,
     handlePause,
     handleEnded,
     handleError,
+    handleLoadStart,
+    handleCanPlay,
     handleUserInteraction,
   };
 }

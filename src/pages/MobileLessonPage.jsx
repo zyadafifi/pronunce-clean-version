@@ -59,9 +59,7 @@ const MobileLessonPage = () => {
   const preloaderRef = useRef(null);
   const [preloadedVideos, setPreloadedVideos] = useState(new Set());
 
-  // Enhanced video states
-  const [videoBuffering, setVideoBuffering] = useState(false);
-  const [videoCanPlay, setVideoCanPlay] = useState(false);
+  // Enhanced video states - simplified for smooth playback
   const [autoplayFailed, setAutoplayFailed] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -657,7 +655,7 @@ const MobileLessonPage = () => {
 
       console.log("🔄 Preloading next video:", nextSentence.videoSrc);
 
-      // Create preloader video element
+      // Create aggressive preloader video element for seamless playback
       const preloader = document.createElement("video");
       preloader.preload = "auto";
       preloader.muted = false;
@@ -665,9 +663,12 @@ const MobileLessonPage = () => {
       preloader.crossOrigin = "anonymous";
       preloader.style.display = "none";
 
-      // Add mobile-specific attributes
+      // Aggressive preloading attributes for mobile optimization
       preloader.setAttribute("webkit-playsinline", "true");
       preloader.setAttribute("x5-video-player-type", "h5");
+      preloader.setAttribute("x5-video-player-fullscreen", "true");
+      preloader.setAttribute("preload", "auto");
+      preloader.setAttribute("buffered", "true");
 
       preloader.onloadeddata = () => {
         console.log("✅ Video preloaded successfully:", nextSentence.videoSrc);
@@ -696,15 +697,23 @@ const MobileLessonPage = () => {
     [conversation, preloadedVideos]
   );
 
-  // Preload next video when current video starts playing
+  // Aggressive preloading for seamless video transitions
   useEffect(() => {
     if (conversation?.sentences && currentSentenceIndex >= 0) {
       const nextIndex = currentSentenceIndex + 1;
       if (nextIndex < conversation.sentences.length) {
-        // Delay preloading to not interfere with current video
+        // Immediate preloading for seamless experience
         setTimeout(() => {
           preloadNextVideo(nextIndex);
-        }, 2000);
+        }, 500); // Reduced delay for faster preloading
+      }
+
+      // Also preload the video after next for even smoother experience
+      const nextNextIndex = currentSentenceIndex + 2;
+      if (nextNextIndex < conversation.sentences.length) {
+        setTimeout(() => {
+          preloadNextVideo(nextNextIndex);
+        }, 1500);
       }
     }
   }, [currentSentenceIndex, conversation, preloadNextVideo]);
@@ -1005,6 +1014,12 @@ const MobileLessonPage = () => {
             crossOrigin="anonymous"
             controls={false}
             style={{ pointerEvents: "none" }}
+            // Optimized attributes for seamless mobile playback
+            buffered="true"
+            x5-video-ignore-metadata="true"
+            x5-playsinline="true"
+            webkit-airplay="allow"
+            disablePictureInPicture={false}
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={handleTimeUpdate}
             onPlay={handlePlay}
@@ -1036,31 +1051,26 @@ const MobileLessonPage = () => {
             onLoadStart={handleLoadStart}
             onCanPlay={handleCanPlay}
             onLoadedData={(e) => {
-              console.log("📹 Video data loaded");
-              setVideoCanPlay(true);
-              setVideoBuffering(false);
+              console.log("📹 Video data loaded - ready for smooth playback");
             }}
             onCanPlayThrough={(e) => {
               console.log(
-                "📹 Video can play through - ready for smooth playback"
+                "📹 Video can play through - optimized for seamless experience"
               );
-              setVideoCanPlay(true);
-              setVideoBuffering(false);
             }}
             onWaiting={(e) => {
-              console.log("⏳ Video waiting for data - buffering");
-              setVideoBuffering(true);
+              // Silently handle waiting - no user notification needed
+              console.log("⏳ Video buffering (hidden from user)");
             }}
             onStalled={(e) => {
-              console.log("⚠️ Video stalled - network issue");
-              setVideoBuffering(true);
+              // Silently handle stalling - no user notification needed
+              console.log("⚠️ Video stalled (hidden from user)");
             }}
             onSuspend={(e) => {
-              console.log("⏸️ Video suspended");
-              setVideoBuffering(false);
+              console.log("⏸️ Video suspended (hidden from user)");
             }}
             onProgress={(e) => {
-              console.log("📊 Video progress - downloading");
+              // Silent progress tracking for optimization
               if (e.target.buffered.length > 0) {
                 const bufferedEnd = e.target.buffered.end(
                   e.target.buffered.length - 1
@@ -1068,34 +1078,21 @@ const MobileLessonPage = () => {
                 const duration = e.target.duration;
                 if (duration > 0) {
                   const bufferedPercent = (bufferedEnd / duration) * 100;
-                  console.log(`Buffer: ${bufferedPercent.toFixed(1)}%`);
+                  console.log(
+                    `Buffer: ${bufferedPercent.toFixed(1)}% (hidden from user)`
+                  );
                 }
               }
             }}
-            onSeekStart={() => {
-              console.log("🔍 Video seeking started");
-              setVideoBuffering(true);
-            }}
             onSeeked={() => {
-              console.log("✅ Video seeking completed");
-              setVideoBuffering(false);
+              console.log("✅ Video seeking completed (seamless)");
             }}
           >
             <source src={currentSentence?.videoSrc} type="video/mp4" />
             Your browser does not support the video tag.
           </video>
 
-          {/* Video Loading Indicator */}
-          {(videoLoading || videoBuffering) && !videoError && (
-            <div className="video-loading-overlay">
-              <div className="video-loading-spinner">
-                <i className="fas fa-circle-notch fa-spin"></i>
-              </div>
-              <span>
-                {videoBuffering ? "Buffering..." : "Loading video..."}
-              </span>
-            </div>
-          )}
+          {/* Video Loading Indicator - Removed for seamless experience */}
 
           {/* Video Error Indicator */}
           {videoError && (

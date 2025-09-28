@@ -57,31 +57,7 @@
   justify-content: center;
 }
 
-/* Video Loading Overlay */
-.video-loading-overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-  background: rgba(0, 0, 0, 0.8);
-  padding: 30px;
-  border-radius: 15px;
-  color: white;
-  font-size: 16px;
-  text-align: center;
-  z-index: 15;
-  backdrop-filter: blur(5px);
-}
-
-.video-loading-spinner i {
-  font-size: 32px;
-  color: var(--sna-primary);
-  animation: spin 1s linear infinite;
-}
+/* Video Loading Overlay - Removed for seamless user experience */
 
 /* Video Error Overlay */
 .video-error-overlay {
