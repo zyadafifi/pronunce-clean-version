@@ -153,7 +153,7 @@ const MobileLessonPage = () => {
     clearSubtitles,
   } = useSubtitleSync(videoRef);
 
-  // iOS-optimized video play function with fast loading
+  // Enhanced aggressive video play function for autoplay with audio
   const safeVideoPlay = async (forcePlay = false) => {
     if (!videoRef.current) {
       console.error("Video ref is null");
@@ -166,52 +166,23 @@ const MobileLessonPage = () => {
       return false;
     }
 
-    console.log("🍎 iOS-optimized video play:", videoRef.current.src);
+    console.log("Attempting to play video:", videoRef.current.src);
     console.log("Video ready state:", videoRef.current.readyState);
     console.log("Video network state:", videoRef.current.networkState);
 
-    // iOS-specific optimizations
-    const video = videoRef.current;
-
-    // Force iOS to load video data immediately
-    if (video.readyState < 2) {
-      console.log("🔄 Forcing iOS video load...");
-      video.load();
-
-      // Wait for metadata to load on iOS
-      await new Promise((resolve) => {
-        const onLoadedMetadata = () => {
-          video.removeEventListener("loadedmetadata", onLoadedMetadata);
-          resolve();
-        };
-
-        if (video.readyState >= 1) {
-          resolve();
-        } else {
-          video.addEventListener("loadedmetadata", onLoadedMetadata);
-          // Timeout after 2 seconds for iOS
-          setTimeout(resolve, 2000);
-        }
-      });
-    }
-
     // Ensure video is unmuted for audio playback
-    video.muted = false;
-    video.volume = 1.0;
-
-    // iOS Safari specific attributes
-    video.setAttribute("webkit-playsinline", "true");
-    video.setAttribute("playsinline", "true");
+    videoRef.current.muted = false;
+    videoRef.current.volume = 1.0;
 
     try {
-      // iOS-optimized play strategy
-      const playPromise = video.play();
+      // Multiple aggressive play attempts
+      const playPromise = videoRef.current.play();
 
       if (playPromise !== undefined) {
         await playPromise;
       }
 
-      console.log("✅ iOS video play successful with audio");
+      console.log("✅ Video play successful with audio");
       setHasUserInteracted(true);
       userInteractionRef.current = true;
 
@@ -221,59 +192,56 @@ const MobileLessonPage = () => {
 
       return true;
     } catch (error) {
-      console.error("iOS video play failed:", error.name, error.message);
+      console.error("Video play failed:", error.name, error.message);
 
       if (error.name === "NotAllowedError") {
-        console.log("🔄 iOS autoplay blocked, trying user interaction...");
+        console.log("🔄 Attempting alternative autoplay strategies...");
 
-        // iOS-specific user interaction strategy
+        // Strategy 1: Try with user interaction simulation
         try {
-          // Wait for next user interaction on iOS
-          const waitForUserInteraction = () => {
-            return new Promise((resolve) => {
-              const handleInteraction = () => {
-                document.removeEventListener("touchstart", handleInteraction);
-                document.removeEventListener("click", handleInteraction);
-                resolve();
-              };
+          // Create a fake user interaction context
+          const fakeEvent = new Event("click", { bubbles: true });
+          document.dispatchEvent(fakeEvent);
 
-              document.addEventListener("touchstart", handleInteraction, {
-                once: true,
-              });
-              document.addEventListener("click", handleInteraction, {
-                once: true,
-              });
-
-              // Auto-resolve after 5 seconds
-              setTimeout(resolve, 5000);
-            });
-          };
-
-          await waitForUserInteraction();
-          await video.play();
-
-          console.log("✅ iOS video play successful after user interaction");
+          // Try play again immediately
+          await videoRef.current.play();
+          console.log("✅ Video play successful after interaction simulation");
           setHasUserInteracted(true);
           userInteractionRef.current = true;
           setShowIOSAudioOverlay(false);
           setPendingVideoPlay(false);
           return true;
         } catch (retryError) {
-          console.log("🔄 iOS user interaction failed, showing fallback...");
+          console.log(
+            "🔄 Interaction simulation failed, trying direct approach..."
+          );
         }
 
-        // Show iOS-specific fallback UI
+        // Strategy 2: Force play without promise handling
+        try {
+          videoRef.current.play();
+          console.log("✅ Video play successful with direct approach");
+          setHasUserInteracted(true);
+          userInteractionRef.current = true;
+          setShowIOSAudioOverlay(false);
+          setPendingVideoPlay(false);
+          return true;
+        } catch (directError) {
+          console.log("❌ All autoplay strategies failed");
+        }
+
+        // Show fallback UI instead of overlay
         if (!forcePlay && retryCount < 3) {
-          console.log("Showing iOS autoplay fallback UI");
+          console.log("Showing autoplay fallback UI");
           setAutoplayFailed(true);
           setPendingVideoPlay(true);
         }
         return false;
       } else if (error.name === "NotSupportedError") {
-        console.error("Video format not supported on iOS Safari");
+        console.error("Video format not supported or video failed to load");
         return false;
       } else {
-        console.error("Other iOS video play error:", error);
+        console.error("Other video play error:", error);
         return false;
       }
     }
@@ -420,16 +388,40 @@ const MobileLessonPage = () => {
           );
         }
 
-        // iOS-optimized autoplay strategy
+        // Aggressive autoplay strategy - multiple attempts
         const handleCanPlayThrough = () => {
           console.log(
-            "🍎 iOS video can play through, starting optimized autoplay..."
+            "🎬 Video can play through, attempting aggressive autoplay..."
           );
 
-          // iOS-specific autoplay timing
+          // Immediate autoplay attempt
           setTimeout(() => {
             safeVideoPlay(true);
-          }, 100); // Slightly longer delay for iOS
+          }, 50);
+
+          // Secondary attempt
+          setTimeout(() => {
+            if (
+              videoRef.current &&
+              videoRef.current.paused &&
+              !videoRef.current.ended
+            ) {
+              console.log("🔄 Secondary autoplay attempt...");
+              safeVideoPlay(true);
+            }
+          }, 200);
+
+          // Tertiary attempt
+          setTimeout(() => {
+            if (
+              videoRef.current &&
+              videoRef.current.paused &&
+              !videoRef.current.ended
+            ) {
+              console.log("🔄 Tertiary autoplay attempt...");
+              safeVideoPlay(true);
+            }
+          }, 500);
 
           videoRef.current?.removeEventListener(
             "canplaythrough",
@@ -437,53 +429,30 @@ const MobileLessonPage = () => {
           );
         };
 
-        // iOS-optimized loading events
+        // Also try on loadeddata and canplay events for maximum coverage
         const handleLoadedData = () => {
-          console.log("🍎 iOS video data loaded, preparing autoplay...");
-          // iOS needs more time to process video data
+          console.log("🎬 Video data loaded, attempting autoplay...");
           setTimeout(() => {
-            if (videoRef.current && videoRef.current.readyState >= 2) {
-              safeVideoPlay(true);
-            }
-          }, 200);
+            safeVideoPlay(true);
+          }, 100);
         };
 
         const handleCanPlay = () => {
-          console.log("🍎 iOS video can play, attempting autoplay...");
-          // iOS-specific timing for smooth playback
+          console.log("🎬 Video can play, attempting autoplay...");
           setTimeout(() => {
             safeVideoPlay(true);
-          }, 300);
-        };
-
-        // iOS-specific metadata loading
-        const handleLoadedMetadata = () => {
-          console.log("🍎 iOS video metadata loaded");
-          // Force iOS to continue loading video data
-          if (videoRef.current) {
-            videoRef.current.currentTime = 0.1;
-            setTimeout(() => {
-              if (videoRef.current) {
-                videoRef.current.currentTime = 0;
-              }
-            }, 100);
-          }
+          }, 150);
         };
 
         if (videoRef.current) {
-          // iOS-optimized event listeners
           videoRef.current.addEventListener(
             "canplaythrough",
             handleCanPlayThrough
           );
           videoRef.current.addEventListener("loadeddata", handleLoadedData);
           videoRef.current.addEventListener("canplay", handleCanPlay);
-          videoRef.current.addEventListener(
-            "loadedmetadata",
-            handleLoadedMetadata
-          );
 
-          // iOS-specific cleanup with longer timeout
+          // Cleanup listeners
           const cleanup = () => {
             if (videoRef.current) {
               videoRef.current.removeEventListener(
@@ -495,15 +464,11 @@ const MobileLessonPage = () => {
                 handleLoadedData
               );
               videoRef.current.removeEventListener("canplay", handleCanPlay);
-              videoRef.current.removeEventListener(
-                "loadedmetadata",
-                handleLoadedMetadata
-              );
             }
           };
 
-          // iOS needs more time for video processing
-          setTimeout(cleanup, 8000); // Increased from 5s to 8s for iOS
+          // Set cleanup timeout
+          setTimeout(cleanup, 5000);
         }
       } else {
         console.warn("No video source found for current sentence");
@@ -670,7 +635,7 @@ const MobileLessonPage = () => {
     };
   }, [isMobile, setupMobileAccessibility]);
 
-  // iOS-optimized video preloading system for fast loading
+  // Video preloading system for smooth playback
   const preloadNextVideo = useCallback(
     (nextSentenceIndex) => {
       if (
@@ -688,59 +653,33 @@ const MobileLessonPage = () => {
         return;
       }
 
-      console.log("🍎 iOS-optimized preloading:", nextSentence.videoSrc);
+      console.log("🔄 Preloading next video:", nextSentence.videoSrc);
 
-      // Create iOS-optimized preloader video element
+      // Create aggressive preloader video element for seamless playback
       const preloader = document.createElement("video");
-      preloader.preload = "metadata"; // iOS Safari respects metadata better than auto
-      preloader.muted = true; // Start muted for iOS compatibility
+      preloader.preload = "auto";
+      preloader.muted = false;
       preloader.playsInline = true;
       preloader.crossOrigin = "anonymous";
       preloader.style.display = "none";
-      preloader.style.position = "absolute";
-      preloader.style.top = "-9999px";
 
-      // iOS Safari specific optimizations
+      // Aggressive preloading attributes for mobile optimization
       preloader.setAttribute("webkit-playsinline", "true");
-      preloader.setAttribute("playsinline", "true");
-      preloader.setAttribute("preload", "metadata");
-
-      // iOS performance attributes
-      preloader.setAttribute("data-ios-optimized", "true");
-      preloader.width = 1; // Minimal size for iOS
-      preloader.height = 1;
-
-      // iOS-specific loading events
-      preloader.onloadedmetadata = () => {
-        console.log("🍎 iOS video metadata loaded:", nextSentence.videoSrc);
-        // Force load first few seconds of video data on iOS
-        preloader.currentTime = 0.1;
-      };
+      preloader.setAttribute("x5-video-player-type", "h5");
+      preloader.setAttribute("x5-video-player-fullscreen", "true");
+      preloader.setAttribute("preload", "auto");
+      preloader.setAttribute("buffered", "true");
 
       preloader.onloadeddata = () => {
-        console.log(
-          "✅ iOS video preloaded successfully:",
-          nextSentence.videoSrc
-        );
+        console.log("✅ Video preloaded successfully:", nextSentence.videoSrc);
         setPreloadedVideos((prev) => new Set([...prev, nextSentence.videoSrc]));
       };
 
       preloader.onerror = (e) => {
-        console.warn("❌ iOS video preload failed:", nextSentence.videoSrc, e);
-        // Remove failed preloader
-        if (preloader && preloader.parentNode) {
-          preloader.parentNode.removeChild(preloader);
-        }
+        console.warn("❌ Video preload failed:", nextSentence.videoSrc, e);
       };
 
-      // iOS-specific loading strategy
-      preloader.oncanplay = () => {
-        console.log("🍎 iOS video can play:", nextSentence.videoSrc);
-        // Preload a small portion to ensure smooth playback
-        preloader.currentTime = 0;
-      };
-
-      // Set source and start iOS-optimized preloading
+      // Set source and start preloading
       preloader.src = nextSentence.videoSrc;
       preloader.load();
 
@@ -748,12 +687,12 @@ const MobileLessonPage = () => {
       preloaderRef.current = preloader;
       document.body.appendChild(preloader);
 
-      // iOS-specific cleanup - shorter timeout to prevent memory issues
+      // Cleanup after 30 seconds to prevent memory leaks
       setTimeout(() => {
         if (preloader && preloader.parentNode) {
           preloader.parentNode.removeChild(preloader);
         }
-      }, 15000); // Reduced from 30s to 15s for iOS
+      }, 30000);
     },
     [conversation, preloadedVideos]
   );
@@ -1066,7 +1005,7 @@ const MobileLessonPage = () => {
             className="mobile-lesson-video"
             autoPlay
             playsInline
-            preload="metadata"
+            preload="auto"
             muted={false}
             webkit-playsinline="true"
             x5-video-player-type="h5"
@@ -1075,14 +1014,12 @@ const MobileLessonPage = () => {
             crossOrigin="anonymous"
             controls={false}
             style={{ pointerEvents: "none" }}
-            // iOS Safari optimized attributes for fast loading
+            // Optimized attributes for seamless mobile playback
+            buffered="true"
+            x5-video-ignore-metadata="true"
+            x5-playsinline="true"
             webkit-airplay="allow"
             disablePictureInPicture={false}
-            // iOS performance optimizations
-            data-setup='{"fluid": true, "responsive": true}'
-            poster=""
-            // Force iOS to respect our loading strategy
-            x5-video-ignore-metadata="false"
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={handleTimeUpdate}
             onPlay={handlePlay}

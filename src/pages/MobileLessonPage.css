@@ -188,20 +188,6 @@
   user-select: none; /* Prevent selection */
   -webkit-user-select: none; /* iOS Safari */
   -webkit-touch-callout: none; /* iOS Safari */
-
-  /* iOS Safari video performance optimizations */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  will-change: transform;
-
-  /* iOS video loading optimizations */
-  -webkit-video-presentation-mode: inline;
-
-  /* Force hardware acceleration on iOS */
-  -webkit-transform: translate3d(0, 0, 0);
-  transform: translate3d(0, 0, 0);
 }
 
 /* Mobile Progress Bar - Updated to match screenshot */
@@ -1697,40 +1683,5 @@
   }
   90% {
     transform: translateX(0) scale(1);
-  }
-}
-
-/* iOS Safari video loading performance optimizations */
-@supports (-webkit-touch-callout: none) {
-  /* iOS video performance enhancements */
-  .mobile-lesson-video {
-    -webkit-transform: translate3d(0, 0, 0);
-    transform: translate3d(0, 0, 0);
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-    will-change: auto;
-  }
-
-  .video-container-wrapper {
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-    -webkit-perspective: 1000px;
-    perspective: 1000px;
-  }
-}
-
-/* iOS Safari video loading optimizations */
-@media screen and (-webkit-min-device-pixel-ratio: 0) {
-  .mobile-lesson-video {
-    -webkit-transform: translate3d(0, 0, 0);
-    transform: translate3d(0, 0, 0);
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-  }
-
-  /* Force GPU acceleration for video container */
-  .video-container-wrapper {
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
   }
 }
