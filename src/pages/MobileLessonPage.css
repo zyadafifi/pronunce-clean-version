@@ -1444,10 +1444,10 @@
   animation: waveformPulse 1s ease-in-out infinite;
 }
 
-/* Subtitle Container */
+/* Subtitle Container - Simple Design */
 .subtitle-container {
   position: absolute;
-  top: 100px;
+  bottom: 80px;
   left: 20px;
   right: 20px;
   z-index: 10;
@@ -1455,29 +1455,25 @@
 }
 
 .subtitle-content {
-  background: rgba(0, 0, 0, 0.068);
-  border-radius: 12px;
-  padding: 12px 16px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  padding: 8px 12px;
   text-align: center;
 }
 
 .subtitle-english {
   color: white;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.4;
-  margin-bottom: 4px;
-  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin-bottom: 2px;
 }
 
 .subtitle-arabic {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
   direction: rtl;
   text-align: center;
-  font-family: "Cairo", "Tajawal", sans-serif;
 }

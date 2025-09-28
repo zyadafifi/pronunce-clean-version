@@ -194,7 +194,7 @@ const TopicsPage = () => {
       );
     } else {
       navigate(
-        `/practice/${currentLesson.lessonNumber}/${topicId}/${conversationId}`
+        `/desktop/${currentLesson.lessonNumber}/${topicId}/${conversationId}`
       );
     }
   };

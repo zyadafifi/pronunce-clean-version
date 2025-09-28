@@ -10,6 +10,7 @@ import { ProgressProvider } from "./contexts/ProgressContext";
 import HomePage from "./pages/HomePage";
 import TopicsPage from "./pages/TopicsPage";
 import MobileLessonPage from "./pages/MobileLessonPage";
+import DesktopConversationPage from "./pages/DesktopConversationPage";
 import { testDataLoading } from "./test-data";
 import "./App.css";
 
@@ -35,6 +36,12 @@ function App() {
               <Route
                 path="/mobile/:lessonNumber/:topicId/:conversationId"
                 element={<MobileLessonPage />}
+              />
+
+              {/* Desktop Routes */}
+              <Route
+                path="/desktop/:lessonNumber/:topicId/:conversationId"
+                element={<DesktopConversationPage />}
               />
 
               {/* Fallback for any other route */}
