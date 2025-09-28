@@ -47,17 +47,37 @@ export function useVideoPlayer() {
     setCurrentTime(time);
   }, []);
 
-  // Set video source with optimized loading
+  // iOS-optimized video source loading
   const setVideoSource = useCallback((src) => {
     if (!videoRef.current) return;
 
     setIsLoading(true);
     setError(null);
 
-    // Optimized video loading for seamless playback
-    videoRef.current.src = src;
-    videoRef.current.preload = "auto";
-    videoRef.current.load();
+    const video = videoRef.current;
+
+    // iOS Safari optimizations
+    video.preload = "metadata"; // iOS respects metadata better than auto
+    video.setAttribute("webkit-playsinline", "true");
+    video.setAttribute("playsinline", "true");
+
+    // Set source and force iOS to start loading
+    video.src = src;
+    video.load();
+
+    // iOS-specific: Force metadata loading
+    const forceMetadataLoad = () => {
+      if (video.readyState < 1) {
+        console.log("🍎 Forcing iOS metadata load...");
+        video.currentTime = 0.1;
+        setTimeout(() => {
+          video.currentTime = 0;
+        }, 100);
+      }
+    };
+
+    // Try to force metadata loading after a short delay
+    setTimeout(forceMetadataLoad, 200);
   }, []);
 
   // Handle video events
