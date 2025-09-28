@@ -78,6 +78,7 @@ const MobileLessonPage = () => {
     recordedAudio,
     recordingTime,
     speechDetected,
+    audioStream, // Add audioStream like desktop
     startRecording,
     stopRecording,
     stopRecordingAndGetBlob,
@@ -302,6 +303,12 @@ const MobileLessonPage = () => {
 
         // Load subtitles for current sentence (mobile only)
         if (isMobile) {
+          console.log("🎬 Loading subtitles for:", {
+            lesson: parseInt(lessonNumber),
+            topic: parseInt(topicId),
+            conversation: parseInt(conversationId),
+            sentence: currentSentenceIndex + 1,
+          });
           loadSubtitlesForSentence(
             parseInt(lessonNumber),
             parseInt(topicId),
@@ -642,7 +649,8 @@ const MobileLessonPage = () => {
 
   const handleDeleteRecording = () => {
     clearRecording();
-    setShowPracticeOverlay(false);
+    // Keep practice overlay visible (like desktop) - just reset to initial state
+    // The MobilePracticeOverlay will handle showing the initial controls
   };
 
   const handlePracticeComplete = (results) => {
@@ -822,6 +830,7 @@ const MobileLessonPage = () => {
           recordingTime={recordingTime}
           speechDetected={speechDetected}
           isProcessing={isProcessing}
+          audioStream={audioStream}
           pronunciationScore={
             lastScore
               ? {
@@ -841,6 +850,7 @@ const MobileLessonPage = () => {
           onStopRecording={handleStopRecording}
           onPlayRecording={playRecordedAudio}
           onDeleteRecording={handleDeleteRecording}
+          onShowAlert={showAlertMessage}
         />
 
         {/* Completion Card */}

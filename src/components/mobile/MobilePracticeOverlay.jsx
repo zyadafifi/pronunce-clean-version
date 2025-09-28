@@ -14,6 +14,8 @@ const MobilePracticeOverlay = ({
   onListenSlowClick = () => {},
   onPlayRecording = () => {},
   onDeleteRecording = () => {},
+  onShowAlert = () => {}, // New prop to communicate with parent for showing alerts
+  audioStream = null, // Add audio stream prop like desktop
   isRecording = false,
   recordingTime = 0,
   speechDetected = false,
@@ -26,8 +28,14 @@ const MobilePracticeOverlay = ({
     Array.from({ length: 26 }, () => 6)
   );
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false); // Track if speech synthesis is paused
+  const [isPlayingRecording, setIsPlayingRecording] = useState(false); // Track if recorded audio is playing
+  const [isRecordingPaused, setIsRecordingPaused] = useState(false); // Track if recorded audio playback is paused
   const [recordedBlob, setRecordedBlob] = useState(null);
+  const [hasUserRecording, setHasUserRecording] = useState(false); // Track if user has recorded for this sentence
+  const [showRecordingAlert, setShowRecordingAlert] = useState(false); // Track if we should show the recording alert
   const [isProcessingLocal, setIsProcessingLocal] = useState(false); // Local processing state
+  const [isRecordingCancelled, setIsRecordingCancelled] = useState(false); // Visual state for cancelled recording
 
   // Refs
   const mediaRecorderRef = useRef(null);
@@ -36,7 +44,12 @@ const MobilePracticeOverlay = ({
   const waveformAnimationRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
+  const dataArrayRef = useRef(null); // Add dataArray ref like desktop
+  const sourceRef = useRef(null); // Add source ref like desktop
   const isRecordingCancelledRef = useRef(false); // Use ref to track cancellation
+  const currentUtteranceRef = useRef(null); // Track current speech synthesis utterance
+  const currentAudioRef = useRef(null); // Track current recorded audio playback
+  // audioStream is now passed as prop from parent
 
   // AssemblyAI API Key - You can set this as an environment variable
   // For development, you can replace this with your actual API key
@@ -159,104 +172,231 @@ const MobilePracticeOverlay = ({
     ) {
       mediaRecorderRef.current.stop();
     }
+    if (sourceRef.current) {
+      sourceRef.current.disconnect();
+      sourceRef.current = null;
+    }
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
+    // Audio stream cleanup is handled by parent component
     setWaveformBars(Array.from({ length: 26 }, () => 6));
   }, []);
 
-  // Speech synthesis for listening
+  // Speech synthesis for listening with pause/resume support
   const handleListen = useCallback(
     (slow = false) => {
       if (isRecording) return;
 
+      // Handle pause/resume for already speaking utterance
       if (isSpeaking) {
-        window.speechSynthesis.cancel();
-        setIsSpeaking(false);
+        if (isPaused) {
+          // Resume speech
+          window.speechSynthesis.resume();
+          setIsPaused(false);
+        } else {
+          // Pause speech
+          window.speechSynthesis.pause();
+          setIsPaused(true);
+        }
         return;
       }
 
+      // Start new speech
+      window.speechSynthesis.cancel(); // Cancel any existing speech
       const utterance = new SpeechSynthesisUtterance(sentence.english);
       utterance.lang = "en-US";
       utterance.rate = slow ? 0.6 : 1.0;
 
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        setIsPaused(false);
+      };
 
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        currentUtteranceRef.current = null;
+      };
+
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        setIsPaused(false);
+        currentUtteranceRef.current = null;
+      };
+
+      currentUtteranceRef.current = utterance;
       window.speechSynthesis.speak(utterance);
     },
-    [sentence.english, isRecording, isSpeaking]
+    [sentence.english, isRecording, isSpeaking, isPaused]
   );
 
-  // Play recorded audio
+  // Play recorded audio with pause/resume support and alert for no recording
   const handlePlayRecorded = useCallback(() => {
-    if (!recordedBlob || isRecording) return;
+    if (isRecording) return;
+
+    // Check if user has no recording - show alert
+    if (!hasUserRecording || !recordedBlob) {
+      onShowAlert(
+        "Please record your voice first by clicking the microphone button, then you can listen to your recording."
+      );
+      return;
+    }
+
+    // Handle pause/resume for already playing audio
+    if (isPlayingRecording && currentAudioRef.current) {
+      if (isRecordingPaused) {
+        // Resume playback
+        currentAudioRef.current.play().catch(console.error);
+        setIsRecordingPaused(false);
+      } else {
+        // Pause playback
+        currentAudioRef.current.pause();
+        setIsRecordingPaused(true);
+      }
+      return;
+    }
+
+    // Start new playback
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
 
     const audio = new Audio(URL.createObjectURL(recordedBlob));
     audio.playbackRate = 0.7; // Slow playback
+
+    audio.onplay = () => {
+      setIsPlayingRecording(true);
+      setIsRecordingPaused(false);
+    };
+    audio.onpause = () => {
+      setIsRecordingPaused(true);
+    };
+    audio.onended = () => {
+      setIsPlayingRecording(false);
+      setIsRecordingPaused(false);
+      currentAudioRef.current = null;
+    };
+    audio.onerror = () => {
+      setIsPlayingRecording(false);
+      setIsRecordingPaused(false);
+      currentAudioRef.current = null;
+    };
+
+    currentAudioRef.current = audio;
     audio.play().catch(console.error);
-  }, [recordedBlob, isRecording]);
+  }, [
+    recordedBlob,
+    isRecording,
+    isPlayingRecording,
+    isRecordingPaused,
+    hasUserRecording,
+    onShowAlert,
+  ]);
 
-  // Waveform animation with improved iOS compatibility
-  const animateWaveform = useCallback(() => {
-    if (!isRecording || !analyserRef.current) return;
+  // Real-time audio analysis - EXACTLY like desktop
+  useEffect(() => {
+    if (!audioStream) return;
 
-    try {
-      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-      analyserRef.current.getByteFrequencyData(dataArray);
+    const setupAudioAnalysis = async () => {
+      try {
+        // Create audio context
+        audioContextRef.current = new (window.AudioContext ||
+          window.webkitAudioContext)();
 
-      // Calculate average amplitude for better visualization
-      const average =
-        dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-      const normalizedAverage = average / 255;
+        // Create analyser node
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 64; // EXACTLY like desktop
+        analyserRef.current.smoothingTimeConstant = 0.8; // EXACTLY like desktop
 
-      setWaveformBars((prev) =>
-        prev.map((_, index) => {
-          // Use multiple frequency bins for smoother visualization
-          const startIndex = Math.floor(
-            (index * dataArray.length) / prev.length
-          );
-          const endIndex = Math.floor(
-            ((index + 1) * dataArray.length) / prev.length
-          );
+        // Create data array for frequency data
+        const bufferLength = analyserRef.current.frequencyBinCount;
+        dataArrayRef.current = new Uint8Array(bufferLength);
 
-          let maxValue = 0;
-          for (let i = startIndex; i < endIndex && i < dataArray.length; i++) {
-            maxValue = Math.max(maxValue, dataArray[i]);
+        // Connect audio stream to analyser
+        sourceRef.current =
+          audioContextRef.current.createMediaStreamSource(audioStream);
+        sourceRef.current.connect(analyserRef.current);
+
+        // Start real-time analysis
+        const analyzeAudio = () => {
+          try {
+            if (analyserRef.current && dataArrayRef.current) {
+              analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+
+              // Convert frequency data to bar heights - EXACTLY like desktop
+              const barCount = 26; // Mobile has more bars
+              const dataPerBar = Math.floor(
+                dataArrayRef.current.length / barCount
+              );
+              const newBars = [];
+
+              for (let i = 0; i < barCount; i++) {
+                let sum = 0;
+                for (let j = 0; j < dataPerBar; j++) {
+                  sum += dataArrayRef.current[i * dataPerBar + j];
+                }
+                const average = sum / dataPerBar;
+                // Convert to height (0-255 range to 2-22px range) - EXACTLY like desktop calculation
+                const height = Math.max(2, (average / 255) * 20 + 2);
+                newBars.push(height);
+              }
+
+              setWaveformBars(newBars);
+              waveformAnimationRef.current =
+                requestAnimationFrame(analyzeAudio);
+            }
+          } catch (animationError) {
+            console.warn("Waveform animation error:", animationError);
+            // Continue with fallback animation
+            setWaveformBars((prev) => prev.map(() => Math.random() * 20 + 2));
+            waveformAnimationRef.current = requestAnimationFrame(analyzeAudio);
           }
+        };
 
-          const amplitude = maxValue / 255;
+        analyzeAudio();
+      } catch (error) {
+        console.error("Error setting up audio analysis:", error);
+        // Fallback to random animation if audio analysis fails - EXACTLY like desktop
+        const animateWaveform = () => {
+          setWaveformBars((prev) => prev.map(() => Math.random() * 20 + 2));
+          waveformAnimationRef.current = requestAnimationFrame(animateWaveform);
+        };
+        animateWaveform();
+      }
+    };
 
-          // Add some baseline activity for visual appeal
-          const baselineActivity = 0.05 + Math.random() * 0.05;
-          const finalAmplitude = Math.max(amplitude, baselineActivity);
+    setupAudioAnalysis().catch((error) => {
+      console.error("Setup audio analysis failed:", error);
+    });
 
-          // Scale the height more responsively
-          const minHeight = 4;
-          const maxHeight = 28;
-          const height = minHeight + finalAmplitude * (maxHeight - minHeight);
-
-          return Math.max(minHeight, Math.min(maxHeight, height));
-        })
-      );
-
-      waveformAnimationRef.current = requestAnimationFrame(animateWaveform);
-    } catch (error) {
-      console.warn("Waveform animation error:", error);
-      // Continue animation even if there's an error
-      waveformAnimationRef.current = requestAnimationFrame(animateWaveform);
-    }
-  }, [isRecording]);
+    return () => {
+      try {
+        if (waveformAnimationRef.current) {
+          cancelAnimationFrame(waveformAnimationRef.current);
+        }
+        if (sourceRef.current) {
+          sourceRef.current.disconnect();
+        }
+        if (audioContextRef.current) {
+          audioContextRef.current.close();
+        }
+      } catch (cleanupError) {
+        console.warn("Cleanup error:", cleanupError);
+      }
+    };
+  }, [audioStream]); // EXACTLY like desktop - depend on audioStream prop
 
   // Start recording
   const startRecording = useCallback(async () => {
     try {
       cleanup();
 
-      // Reset cancellation flag
+      // Reset cancellation flags
       isRecordingCancelledRef.current = false;
+      setIsRecordingCancelled(false);
 
       // Notify parent that recording is starting
       onMicClick();
@@ -271,23 +411,7 @@ const MobilePracticeOverlay = ({
         },
       });
 
-      // Setup audio context with iOS compatibility
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      audioContextRef.current = new AudioContext();
-
-      // Resume audio context if suspended (required for iOS)
-      if (audioContextRef.current.state === "suspended") {
-        await audioContextRef.current.resume();
-      }
-
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 256; // Reduced for better performance on mobile
-      analyserRef.current.smoothingTimeConstant = 0.3; // More responsive
-      analyserRef.current.minDecibels = -90;
-      analyserRef.current.maxDecibels = -10;
-
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      source.connect(analyserRef.current);
+      // Audio stream is now passed as prop from parent
 
       // Setup MediaRecorder with iOS compatibility
       let mimeType = "audio/webm;codecs=opus";
@@ -336,9 +460,6 @@ const MobilePracticeOverlay = ({
       // Start recording
       mediaRecorderRef.current.start(100);
 
-      // Start waveform animation
-      animateWaveform();
-
       // Auto-stop after 10 seconds
       setTimeout(() => {
         if (
@@ -355,7 +476,7 @@ const MobilePracticeOverlay = ({
       );
       cleanup();
     }
-  }, [animateWaveform, cleanup, onMicClick]);
+  }, [cleanup, onMicClick]);
 
   // Stop recording with submission sound
   const stopRecording = useCallback(() => {
@@ -376,7 +497,7 @@ const MobilePracticeOverlay = ({
     onStopRecording();
   }, [cleanup, onStopRecording, playSubmissionSound]);
 
-  // Cancel recording with sound effect
+  // Cancel recording with sound effect - desktop behavior
   const cancelRecording = useCallback(() => {
     console.log("🗑️ Cancelling recording...");
 
@@ -385,6 +506,9 @@ const MobilePracticeOverlay = ({
 
     // Set cancellation flag BEFORE stopping the recorder
     isRecordingCancelledRef.current = true;
+
+    // Set visual cancelled state (like desktop)
+    setIsRecordingCancelled(true);
 
     // Stop the MediaRecorder if it's recording
     if (
@@ -399,7 +523,7 @@ const MobilePracticeOverlay = ({
     setRecordedBlob(null);
     cleanup();
 
-    // Notify parent that recording was cancelled
+    // Notify parent that recording was cancelled (but don't hide overlay)
     onDeleteRecording();
   }, [cleanup, onDeleteRecording, playCancellationSound]);
 
@@ -443,6 +567,8 @@ const MobilePracticeOverlay = ({
           "AssemblyAI API key not configured, using fallback processing"
         );
         const fallbackScore = Math.floor(Math.random() * 40) + 60; // Random score 60-100
+        // Mark that user has successfully recorded for this sentence
+        setHasUserRecording(true);
         onComplete({
           score: fallbackScore,
           recognizedText: sentence.english, // Use target text as fallback
@@ -547,6 +673,8 @@ const MobilePracticeOverlay = ({
 
         // Processing complete
         setIsProcessingLocal(false);
+        // Mark that user has successfully recorded for this sentence
+        setHasUserRecording(true);
         // Call onComplete to let parent handle results
         onComplete({
           score: score,
@@ -560,6 +688,8 @@ const MobilePracticeOverlay = ({
 
         // Use fallback processing on error
         const fallbackScore = Math.floor(Math.random() * 30) + 50; // Random score 50-80
+        // Mark that user has successfully recorded for this sentence
+        setHasUserRecording(true);
         onComplete({
           score: fallbackScore,
           recognizedText: sentence.english, // Use target text as fallback
@@ -584,17 +714,53 @@ const MobilePracticeOverlay = ({
   }, [cleanup]);
 
   // Reset state when show changes
+  // Reset cancelled state when parent's recording state changes
+  useEffect(() => {
+    if (!isRecording && isRecordingCancelled) {
+      // Reset cancelled state after animation completes
+      setTimeout(() => {
+        setIsRecordingCancelled(false);
+      }, 600); // Match desktop animation duration
+    }
+  }, [isRecording, isRecordingCancelled]);
+
   useEffect(() => {
     if (!show) {
       cleanup();
       // State is managed by parent
       setRecordedBlob(null);
+
+      // Clean up speech synthesis
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
       setIsSpeaking(false);
+      setIsPaused(false);
+      currentUtteranceRef.current = null;
+
+      // Clean up audio playback
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+      setIsPlayingRecording(false);
+      setIsRecordingPaused(false);
     }
   }, [show, cleanup]);
+
+  // Reset recording status when sentence changes
+  useEffect(() => {
+    setHasUserRecording(false);
+    setRecordedBlob(null);
+    setIsPlayingRecording(false);
+    setIsRecordingPaused(false);
+
+    // Clean up audio playback when sentence changes
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+  }, [sentence.english]); // Reset when sentence changes
 
   return (
     <>
@@ -621,30 +787,67 @@ const MobilePracticeOverlay = ({
           </div>
 
           {/* Normal State - Practice Controls */}
-          {!isRecording && !isProcessingLocal && (
+          {(!isRecording || isRecordingCancelled) && !isProcessingLocal && (
             <div className="practice-controls">
               <button
-                className="control-btn listen-btn"
+                className={`control-btn listen-btn ${
+                  isSpeaking && !isPaused ? "speaking" : ""
+                } ${isPaused ? "paused" : ""}`}
                 onClick={() => handleListen(false)}
+                title={
+                  isSpeaking
+                    ? isPaused
+                      ? "Resume listening"
+                      : "Pause listening"
+                    : "Listen to example"
+                }
               >
-                <i className="fas fa-volume-up"></i>
+                <i
+                  className={`fas ${
+                    isSpeaking
+                      ? isPaused
+                        ? "fa-play"
+                        : "fa-pause"
+                      : "fa-volume-up"
+                  }`}
+                ></i>
               </button>
 
-              <button className="mic-btn" onClick={startRecording}>
+              <button
+                className={`mic-btn ${isRecordingCancelled ? "cancelled" : ""}`}
+                onClick={startRecording}
+              >
                 <i className="fas fa-microphone"></i>
               </button>
 
               <button
-                className="control-btn listen-slow-btn"
+                className={`control-btn listen-slow-btn ${
+                  isPlayingRecording && !isRecordingPaused ? "speaking" : ""
+                } ${isRecordingPaused ? "paused" : ""}`}
                 onClick={handlePlayRecorded}
+                title={
+                  isPlayingRecording
+                    ? isRecordingPaused
+                      ? "Resume recorded audio"
+                      : "Pause recorded audio"
+                    : "Play recorded audio"
+                }
               >
-                <i className="fas fa-headphones"></i>
+                <i
+                  className={`fas ${
+                    isPlayingRecording
+                      ? isRecordingPaused
+                        ? "fa-play"
+                        : "fa-pause"
+                      : "fa-headphones"
+                  }`}
+                ></i>
               </button>
             </div>
           )}
 
           {/* Recording State - Enhanced Waveform replaces controls */}
-          {isRecording && !isProcessingLocal && (
+          {isRecording && !isRecordingCancelled && !isProcessingLocal && (
             <div className="mobile-waveform-container">
               <button
                 className="mobile-pause-btn"
@@ -687,12 +890,13 @@ const MobilePracticeOverlay = ({
             </div>
           )}
 
-          {/* Processing State - Only spinner in place of mic */}
+          {/* Processing State - Disabled controls with spinner */}
           {isProcessingLocal && (
             <div className="practice-controls">
               <button
-                className="control-btn listen-btn"
-                onClick={() => handleListen(false)}
+                className="control-btn listen-btn disabled"
+                title="Processing audio..."
+                disabled
               >
                 <i className="fas fa-volume-up"></i>
               </button>
@@ -711,8 +915,9 @@ const MobilePracticeOverlay = ({
               </button>
 
               <button
-                className="control-btn listen-slow-btn"
-                onClick={handlePlayRecorded}
+                className="control-btn listen-slow-btn disabled"
+                title="Processing audio..."
+                disabled
               >
                 <i className="fas fa-headphones"></i>
               </button>

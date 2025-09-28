@@ -1455,18 +1455,20 @@
 /* Subtitle Container - Simple Design */
 .subtitle-container {
   position: absolute;
-  bottom: 750px;
+  top: 100px; /* Position under the back button (back button is at top: 40px + height: 44px + margin) */
   left: 20px;
   right: 20px;
-  z-index: 10;
+  z-index: 15; /* Higher than video but lower than overlays */
   pointer-events: none;
 }
 
 .subtitle-content {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8); /* Darker for better visibility */
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 12px 16px;
   text-align: center;
+  border: 2px solid rgba(255, 255, 255, 0.3); /* Debug border to make it visible */
+  min-height: 40px; /* Ensure it has some height */
 }
 
 .subtitle-english {
@@ -1485,4 +1487,108 @@
   line-height: 1.2;
   direction: rtl;
   text-align: center;
+}
+
+/* Responsive subtitle positioning */
+@media (max-width: 480px) {
+  .subtitle-container {
+    top: 95px; /* Adjust for smaller screens */
+    left: 15px;
+    right: 15px;
+  }
+
+  .subtitle-content {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 320px) {
+  .subtitle-container {
+    top: 90px; /* Further adjustment for very small screens */
+    left: 10px;
+    right: 10px;
+  }
+}
+
+/* Mobile Cancelled Recording State - Match Desktop */
+.mic-btn.cancelled {
+  background: linear-gradient(135deg, #dc3545 0%, #ff6b6b 100%) !important;
+  animation: mobileCancelShake 0.6s ease-in-out !important;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4) !important;
+}
+
+.mic-btn.cancelled::before {
+  border-color: #dc3545 !important;
+}
+
+.mic-btn.cancelled:hover {
+  background: linear-gradient(135deg, #cc0000 0%, #ff4444 100%) !important;
+  transform: scale(1.05);
+}
+
+.mic-btn.cancelled:hover::before {
+  border-color: #cc0000 !important;
+}
+
+/* Mobile control button states - Match desktop */
+.control-btn.speaking {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.control-btn.paused {
+  background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
+}
+
+.control-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes mobileCancelShake {
+  0%,
+  100% {
+    transform: translateX(0) scale(1);
+  }
+  10% {
+    transform: translateX(-3px) scale(1.05);
+  }
+  20% {
+    transform: translateX(3px) scale(0.95);
+  }
+  30% {
+    transform: translateX(-2px) scale(1.02);
+  }
+  40% {
+    transform: translateX(2px) scale(0.98);
+  }
+  50% {
+    transform: translateX(-1px) scale(1.01);
+  }
+  60% {
+    transform: translateX(1px) scale(0.99);
+  }
+  70% {
+    transform: translateX(-0.5px) scale(1.005);
+  }
+  80% {
+    transform: translateX(0.5px) scale(0.995);
+  }
+  90% {
+    transform: translateX(0) scale(1);
+  }
 }
