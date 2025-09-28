@@ -153,7 +153,7 @@ const MobileLessonPage = () => {
     clearSubtitles,
   } = useSubtitleSync(videoRef);
 
-  // Enhanced aggressive video play function for autoplay with audio
+  // iOS-optimized automatic video play function
   const safeVideoPlay = async (forcePlay = false) => {
     if (!videoRef.current) {
       console.error("Video ref is null");
@@ -166,83 +166,99 @@ const MobileLessonPage = () => {
       return false;
     }
 
-    console.log("Attempting to play video:", videoRef.current.src);
+    console.log("🎬 Attempting automatic video play:", videoRef.current.src);
     console.log("Video ready state:", videoRef.current.readyState);
     console.log("Video network state:", videoRef.current.networkState);
 
-    // Ensure video is unmuted for audio playback
-    videoRef.current.muted = false;
-    videoRef.current.volume = 1.0;
+    // iOS Strategy: Start muted for autoplay, then enable audio
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-    try {
-      // Multiple aggressive play attempts
-      const playPromise = videoRef.current.play();
+    if (isIOS) {
+      // For iOS: Start muted to allow autoplay, then enable audio after play starts
+      videoRef.current.muted = true;
+      videoRef.current.volume = 0;
 
-      if (playPromise !== undefined) {
-        await playPromise;
-      }
+      try {
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+        }
 
-      console.log("✅ Video play successful with audio");
-      setHasUserInteracted(true);
-      userInteractionRef.current = true;
+        console.log("✅ iOS video autoplay successful (muted)");
 
-      // Hide any overlay since video is playing
-      setShowIOSAudioOverlay(false);
-      setPendingVideoPlay(false);
+        // Enable audio after video starts playing (iOS allows this)
+        setTimeout(() => {
+          if (videoRef.current && !videoRef.current.paused) {
+            videoRef.current.muted = false;
+            videoRef.current.volume = 1.0;
+            console.log("🔊 Audio enabled after autoplay");
+          }
+        }, 100);
 
-      return true;
-    } catch (error) {
-      console.error("Video play failed:", error.name, error.message);
+        setHasUserInteracted(true);
+        userInteractionRef.current = true;
+        setShowIOSAudioOverlay(false);
+        setPendingVideoPlay(false);
 
-      if (error.name === "NotAllowedError") {
-        console.log("🔄 Attempting alternative autoplay strategies...");
+        return true;
+      } catch (error) {
+        console.error("iOS autoplay failed:", error.name, error.message);
 
-        // Strategy 1: Try with user interaction simulation
+        // Fallback: Try with audio directly (might work on some iOS versions)
         try {
-          // Create a fake user interaction context
-          const fakeEvent = new Event("click", { bubbles: true });
-          document.dispatchEvent(fakeEvent);
-
-          // Try play again immediately
+          videoRef.current.muted = false;
+          videoRef.current.volume = 1.0;
           await videoRef.current.play();
-          console.log("✅ Video play successful after interaction simulation");
+          console.log("✅ iOS video play successful with audio fallback");
           setHasUserInteracted(true);
           userInteractionRef.current = true;
           setShowIOSAudioOverlay(false);
           setPendingVideoPlay(false);
           return true;
-        } catch (retryError) {
-          console.log(
-            "🔄 Interaction simulation failed, trying direct approach..."
-          );
-        }
-
-        // Strategy 2: Force play without promise handling
-        try {
-          videoRef.current.play();
-          console.log("✅ Video play successful with direct approach");
-          setHasUserInteracted(true);
-          userInteractionRef.current = true;
-          setShowIOSAudioOverlay(false);
-          setPendingVideoPlay(false);
-          return true;
-        } catch (directError) {
-          console.log("❌ All autoplay strategies failed");
-        }
-
-        // Show fallback UI instead of overlay
-        if (!forcePlay && retryCount < 3) {
-          console.log("Showing autoplay fallback UI");
+        } catch (fallbackError) {
+          console.log("❌ iOS autoplay completely failed");
           setAutoplayFailed(true);
           setPendingVideoPlay(true);
+          return false;
         }
-        return false;
-      } else if (error.name === "NotSupportedError") {
-        console.error("Video format not supported or video failed to load");
-        return false;
-      } else {
-        console.error("Other video play error:", error);
-        return false;
+      }
+    } else {
+      // For non-iOS: Try with audio first
+      videoRef.current.muted = false;
+      videoRef.current.volume = 1.0;
+
+      try {
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+        }
+
+        console.log("✅ Video play successful with audio");
+        setHasUserInteracted(true);
+        userInteractionRef.current = true;
+        setShowIOSAudioOverlay(false);
+        setPendingVideoPlay(false);
+
+        return true;
+      } catch (error) {
+        console.error("Video play failed:", error.name, error.message);
+
+        // Fallback: Try muted
+        try {
+          videoRef.current.muted = true;
+          await videoRef.current.play();
+          console.log("✅ Video play successful (muted fallback)");
+          setHasUserInteracted(true);
+          userInteractionRef.current = true;
+          setShowIOSAudioOverlay(false);
+          setPendingVideoPlay(false);
+          return true;
+        } catch (mutedError) {
+          console.log("❌ All play attempts failed");
+          setAutoplayFailed(true);
+          setPendingVideoPlay(true);
+          return false;
+        }
       }
     }
   };
@@ -388,60 +404,26 @@ const MobileLessonPage = () => {
           );
         }
 
-        // Aggressive autoplay strategy - multiple attempts
+        // Automatic video play triggers - no user interaction required
         const handleCanPlayThrough = () => {
           console.log(
-            "🎬 Video can play through, attempting aggressive autoplay..."
+            "🎬 Video can play through, triggering automatic play..."
           );
-
-          // Immediate autoplay attempt
-          setTimeout(() => {
-            safeVideoPlay(true);
-          }, 50);
-
-          // Secondary attempt
-          setTimeout(() => {
-            if (
-              videoRef.current &&
-              videoRef.current.paused &&
-              !videoRef.current.ended
-            ) {
-              console.log("🔄 Secondary autoplay attempt...");
-              safeVideoPlay(true);
-            }
-          }, 200);
-
-          // Tertiary attempt
-          setTimeout(() => {
-            if (
-              videoRef.current &&
-              videoRef.current.paused &&
-              !videoRef.current.ended
-            ) {
-              console.log("🔄 Tertiary autoplay attempt...");
-              safeVideoPlay(true);
-            }
-          }, 500);
-
+          safeVideoPlay(true);
           videoRef.current?.removeEventListener(
             "canplaythrough",
             handleCanPlayThrough
           );
         };
 
-        // Also try on loadeddata and canplay events for maximum coverage
         const handleLoadedData = () => {
-          console.log("🎬 Video data loaded, attempting autoplay...");
-          setTimeout(() => {
-            safeVideoPlay(true);
-          }, 100);
+          console.log("🎬 Video data loaded, triggering automatic play...");
+          safeVideoPlay(true);
         };
 
         const handleCanPlay = () => {
-          console.log("🎬 Video can play, attempting autoplay...");
-          setTimeout(() => {
-            safeVideoPlay(true);
-          }, 150);
+          console.log("🎬 Video can play, triggering automatic play...");
+          safeVideoPlay(true);
         };
 
         if (videoRef.current) {
@@ -565,8 +547,7 @@ const MobileLessonPage = () => {
     handleConversationCompleted,
   ]);
 
-  // Detect if we're on mobile and set initial overlay state
-  // Early user interaction capture for autoplay
+  // Automatic video play setup - no user interaction required
   useEffect(() => {
     if (!isMobile) {
       // On desktop, user interaction might not be required
@@ -577,61 +558,48 @@ const MobileLessonPage = () => {
 
     // Start with no overlay - we want immediate autoplay
     setShowIOSAudioOverlay(false);
-    setHasUserInteracted(false);
+    setHasUserInteracted(true); // Set to true for automatic play
+    userInteractionRef.current = true;
 
-    // Capture any early user interaction for mobile autoplay - ONLY for video area
-    const captureInteraction = (event) => {
-      // Only capture interactions on the video container, not practice overlay
-      if (
-        event.target.closest(".mobile-practice-overlay") ||
-        event.target.closest(".practice-overlay") ||
-        event.target.closest(".mobile-waveform-container") ||
-        event.target.closest(".control-btn") ||
-        event.target.closest(".mic-btn")
-      ) {
-        return; // Don't interfere with practice overlay interactions
-      }
+    // Mobile-specific setup
+    setupMobileAccessibility();
 
-      console.log("🎯 Early user interaction captured:", event.type);
-      setHasUserInteracted(true);
-      userInteractionRef.current = true;
-      setAutoplayAttempted(false); // Reset to allow autoplay attempts
-
-      // Try to play video if it exists and is paused (but not ended)
+    // Automatic video play trigger - no user interaction needed
+    const triggerAutomaticPlay = () => {
       if (
         videoRef.current &&
         videoRef.current.paused &&
         !videoRef.current.ended
       ) {
-        console.log("🎬 Attempting autoplay after user interaction...");
+        console.log("🎬 Triggering automatic video play...");
         safeVideoPlay(true);
       }
-
-      // Remove listeners after first interaction
-      document.removeEventListener("touchstart", captureInteraction, true);
-      document.removeEventListener("touchend", captureInteraction, true);
-      document.removeEventListener("click", captureInteraction, true);
-      document.removeEventListener("keydown", captureInteraction, true);
-      document.removeEventListener("scroll", captureInteraction, true);
     };
 
-    // Add multiple event listeners to capture any user interaction - but avoid practice overlay
-    document.addEventListener("touchstart", captureInteraction, true);
-    document.addEventListener("touchend", captureInteraction, true);
-    document.addEventListener("click", captureInteraction, true);
-    document.addEventListener("keydown", captureInteraction, true);
-    document.addEventListener("scroll", captureInteraction, true);
+    // Trigger automatic play after a short delay to ensure video is ready
+    const autoPlayTimeout = setTimeout(triggerAutomaticPlay, 500);
 
-    // Mobile-specific setup
-    setupMobileAccessibility();
+    // Also try when video metadata is loaded
+    const handleVideoReady = () => {
+      console.log("📹 Video ready for automatic play");
+      triggerAutomaticPlay();
+    };
+
+    if (videoRef.current) {
+      videoRef.current.addEventListener("loadedmetadata", handleVideoReady);
+      videoRef.current.addEventListener("canplay", handleVideoReady);
+    }
 
     // Cleanup
     return () => {
-      document.removeEventListener("touchstart", captureInteraction, true);
-      document.removeEventListener("touchend", captureInteraction, true);
-      document.removeEventListener("click", captureInteraction, true);
-      document.removeEventListener("keydown", captureInteraction, true);
-      document.removeEventListener("scroll", captureInteraction, true);
+      clearTimeout(autoPlayTimeout);
+      if (videoRef.current) {
+        videoRef.current.removeEventListener(
+          "loadedmetadata",
+          handleVideoReady
+        );
+        videoRef.current.removeEventListener("canplay", handleVideoReady);
+      }
     };
   }, [isMobile, setupMobileAccessibility]);
 
@@ -1006,20 +974,22 @@ const MobileLessonPage = () => {
             autoPlay
             playsInline
             preload="auto"
-            muted={false}
+            muted={true}
             webkit-playsinline="true"
             x5-video-player-type="h5"
             x5-video-player-fullscreen="true"
-            x5-video-orientation="portraint"
+            x5-video-orientation="portrait"
             crossOrigin="anonymous"
             controls={false}
             style={{ pointerEvents: "none" }}
-            // Optimized attributes for seamless mobile playback
+            // iOS-optimized attributes for automatic playback
             buffered="true"
             x5-video-ignore-metadata="true"
             x5-playsinline="true"
             webkit-airplay="allow"
             disablePictureInPicture={false}
+            // Additional iOS attributes for better autoplay
+            playsinline="true"
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={handleTimeUpdate}
             onPlay={handlePlay}
