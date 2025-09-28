@@ -1,17 +1,26 @@
 import React from "react";
 import DesktopRecordingUI from "./DesktopRecordingUI";
+import SpinnerLoadingIcon from "../../SpinnerLoadingIcon";
 
 const DesktopPracticeSection = ({
   currentSentence,
   isRecording,
   isSpeaking,
+  isPaused,
+  isPlayingRecording,
+  isRecordingPaused,
   onListenClick,
   onMicClick,
   onPlayRecording,
+  onPauseClick,
+  onPauseRecording,
   showRecordingUI,
   recordingTime,
   onStopRecording,
   onDeleteRecording,
+  isRecordingCancelled,
+  audioStream,
+  isProcessingAudio,
 }) => {
   return (
     <div className="practice-section">
@@ -34,23 +43,47 @@ const DesktopPracticeSection = ({
         </p>
       </div>
 
-      {/* Control Icons - Show when not recording */}
-      {!showRecordingUI && (
+      {/* Control Icons - Show when not recording and not processing */}
+      {!showRecordingUI && !isProcessingAudio && (
         <div className="control-icons">
-          {/* Listen Button */}
+          {/* Listen Button - Shows pause icon when speaking */}
           <button
-            className={`control-btn listen-btn ${isSpeaking ? "speaking" : ""}`}
+            className={`control-btn listen-btn ${
+              isSpeaking && !isPaused ? "speaking" : ""
+            } ${isPaused ? "paused" : ""}`}
             id="listenButton"
-            title="Listen to example"
-            onClick={onListenClick}
-            disabled={isSpeaking}
+            title={
+              isSpeaking
+                ? isPaused
+                  ? "Resume listening"
+                  : "Pause listening"
+                : "Listen to example"
+            }
+            onClick={(e) => {
+              e.preventDefault();
+              if (isSpeaking) {
+                onPauseClick();
+              } else {
+                onListenClick();
+              }
+            }}
           >
-            <i className="fas fa-volume-up"></i>
+            <i
+              className={`fas ${
+                isSpeaking
+                  ? isPaused
+                    ? "fa-play"
+                    : "fa-pause"
+                  : "fa-volume-up"
+              }`}
+            ></i>
           </button>
 
           {/* Microphone Button */}
           <button
-            className={`mic-button ${isRecording ? "recording" : ""}`}
+            className={`mic-button ${isRecording ? "recording" : ""} ${
+              isRecordingCancelled ? "cancelled" : ""
+            }`}
             id="micButton"
             title={isRecording ? "Stop recording" : "Start recording"}
             onClick={onMicClick}
@@ -58,12 +91,61 @@ const DesktopPracticeSection = ({
             <i className="fas fa-microphone"></i>
           </button>
 
-          {/* Play Recording Button */}
+          {/* Play Recording Button - Shows pause icon when playing recorded audio */}
           <button
-            className="control-btn play-btn"
+            className={`control-btn play-btn ${
+              isPlayingRecording && !isRecordingPaused ? "speaking" : ""
+            } ${isRecordingPaused ? "paused" : ""}`}
             id="bookmarkIcon"
-            title="Play recorded audio"
-            onClick={onPlayRecording}
+            title={
+              isPlayingRecording
+                ? isRecordingPaused
+                  ? "Resume recorded audio"
+                  : "Pause recorded audio"
+                : "Play recorded audio"
+            }
+            onClick={isPlayingRecording ? onPauseRecording : onPlayRecording}
+          >
+            <i
+              className={`fas ${
+                isPlayingRecording
+                  ? isRecordingPaused
+                    ? "fa-play"
+                    : "fa-pause"
+                  : "fa-headphones"
+              }`}
+            ></i>
+          </button>
+        </div>
+      )}
+
+      {/* Processing Spinner - Show when processing audio */}
+      {!showRecordingUI && isProcessingAudio && (
+        <div className="control-icons processing-state">
+          {/* Listen Button - Disabled during processing */}
+          <button
+            className="control-btn listen-btn disabled"
+            id="listenButton"
+            title="Processing audio..."
+            disabled
+          >
+            <i className="fas fa-volume-up"></i>
+          </button>
+
+          {/* Spinner in place of mic button */}
+          <div className="spinner-container">
+            <SpinnerLoadingIcon
+              size={90}
+              ariaLabel="Processing your recording, please wait..."
+            />
+          </div>
+
+          {/* Play Recording Button - Disabled during processing */}
+          <button
+            className="control-btn play-btn disabled"
+            id="bookmarkIcon"
+            title="Processing audio..."
+            disabled
           >
             <i className="fas fa-headphones"></i>
           </button>
@@ -76,6 +158,7 @@ const DesktopPracticeSection = ({
           recordingTime={recordingTime}
           onStopRecording={onStopRecording}
           onDeleteRecording={onDeleteRecording}
+          audioStream={audioStream}
         />
       )}
     </div>

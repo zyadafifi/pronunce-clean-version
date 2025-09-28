@@ -6,11 +6,17 @@ const DesktopResultsDialog = ({
   recognizedText,
   targetText,
   isProcessing,
+  isSpeaking,
+  isPaused,
+  isPlayingRecording,
+  isRecordingPaused,
   onRetry,
   onContinue,
   onClose,
   onListenClick,
   onPlayRecording,
+  onPauseClick,
+  onPauseRecording,
 }) => {
   const [animatedScore, setAnimatedScore] = useState(0);
   const [audioPlayed, setAudioPlayed] = useState(false);
@@ -160,15 +166,38 @@ const DesktopResultsDialog = ({
 
         {/* Dialog Controls */}
         <div className="dialog-controls">
-          {/* Listen Button in Dialog */}
+          {/* Listen Button in Dialog - Shows pause icon when speaking */}
           <button
-            className="control-btn listen-btn"
+            className={`control-btn listen-btn ${
+              isSpeaking && !isPaused ? "speaking" : ""
+            } ${isPaused ? "paused" : ""}`}
             id="listen2Button"
-            title="Listen to example"
-            onClick={onListenClick}
+            title={
+              isSpeaking
+                ? isPaused
+                  ? "Resume listening"
+                  : "Pause listening"
+                : "Listen to example"
+            }
+            onClick={(e) => {
+              e.preventDefault();
+              if (isSpeaking) {
+                onPauseClick();
+              } else {
+                onListenClick();
+              }
+            }}
             disabled={isProcessing}
           >
-            <i className="fas fa-volume-up"></i>
+            <i
+              className={`fas ${
+                isSpeaking
+                  ? isPaused
+                    ? "fa-play"
+                    : "fa-pause"
+                  : "fa-volume-up"
+              }`}
+            ></i>
           </button>
 
           {/* Action Buttons */}
@@ -193,13 +222,29 @@ const DesktopResultsDialog = ({
 
           {/* Play Recording Button in Dialog */}
           <button
-            className="control-btn play-btn"
+            className={`control-btn play-btn ${
+              isPlayingRecording && !isRecordingPaused ? "speaking" : ""
+            } ${isRecordingPaused ? "paused" : ""}`}
             id="bookmark-icon2"
-            title="Play recorded audio"
-            onClick={onPlayRecording}
+            title={
+              isPlayingRecording
+                ? isRecordingPaused
+                  ? "Resume recorded audio"
+                  : "Pause recorded audio"
+                : "Play recorded audio"
+            }
+            onClick={isPlayingRecording ? onPauseRecording : onPlayRecording}
             disabled={isProcessing}
           >
-            <i className="fas fa-headphones"></i>
+            <i
+              className={`fas ${
+                isPlayingRecording
+                  ? isRecordingPaused
+                    ? "fa-play"
+                    : "fa-pause"
+                  : "fa-headphones"
+              }`}
+            ></i>
           </button>
         </div>
 

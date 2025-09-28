@@ -33,6 +33,8 @@ const DesktopConversationPage = () => {
   const [showRecordingUI, setShowRecordingUI] = useState(false);
   const [recognizedText, setRecognizedText] = useState("");
   const [lastScore, setLastScore] = useState(null);
+  const [isRecordingCancelled, setIsRecordingCancelled] = useState(false);
+  const [isProcessingAudio, setIsProcessingAudio] = useState(false);
 
   // Hooks
   const {
@@ -55,16 +57,27 @@ const DesktopConversationPage = () => {
   const {
     isRecording,
     isSpeaking,
+    isPaused,
+    isPlayingRecording,
+    isRecordingPaused,
     recordedAudio,
     recordingTime,
     speechDetected,
+    audioStream,
     startRecording,
     stopRecording,
     stopRecordingAndGetBlob,
     playRecordedAudio,
+    pauseRecordedAudio,
+    resumeRecordedAudio,
+    togglePauseRecordedAudio,
     clearRecording,
     speakText,
     stopSpeaking,
+    pauseSpeaking,
+    resumeSpeaking,
+    togglePauseSpeaking,
+    ultraFastPause,
     cleanup,
   } = useNewSpeechRecognition();
 
@@ -272,6 +285,7 @@ const DesktopConversationPage = () => {
     } else {
       startRecording();
       setShowRecordingUI(true);
+      setIsRecordingCancelled(false); // Reset cancelled state when starting new recording
     }
   };
 
@@ -280,18 +294,36 @@ const DesktopConversationPage = () => {
     const audioBlob = await stopRecordingAndGetBlob();
     setShowRecordingUI(false);
 
+    // Start processing state
+    setIsProcessingAudio(true);
+
+    // Play submission sound effect
+    playSubmissionSound();
+
     if (audioBlob && conversation?.sentences?.[currentSentenceIndex]) {
       const currentSentence = conversation.sentences[currentSentenceIndex];
-      const result = await calculatePronunciationScore(
-        audioBlob,
-        currentSentence.english
-      );
 
-      if (result) {
-        setLastScore(result.score);
-        setRecognizedText(result.recognizedText || "");
-        setShowResultsDialog(true);
+      try {
+        const result = await calculatePronunciationScore(
+          audioBlob,
+          currentSentence.english
+        );
+
+        if (result) {
+          setLastScore(result.score);
+          setRecognizedText(result.recognizedText || "");
+          setShowResultsDialog(true);
+        }
+      } catch (error) {
+        console.error("Error processing audio:", error);
+        // Handle error case - you might want to show an error message
+      } finally {
+        // Always clear processing state
+        setIsProcessingAudio(false);
       }
+    } else {
+      // Clear processing state if no audio or sentence
+      setIsProcessingAudio(false);
     }
   };
 
@@ -299,6 +331,116 @@ const DesktopConversationPage = () => {
   const handleDeleteRecording = () => {
     clearRecording();
     setShowRecordingUI(false);
+    setIsRecordingCancelled(true);
+
+    // Play custom cancellation sound effect
+    playCancellationSound();
+  };
+
+  // Play custom cancellation sound - simple and reliable approach
+  const playCancellationSound = () => {
+    try {
+      // Use Web Audio API for reliable sound generation
+      const audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+
+      const playTone = (frequency, startTime, duration) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+        oscillator.type = "sine";
+
+        // Create envelope for smooth sound
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, startTime + 0.01);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+
+      const currentTime = audioContext.currentTime;
+
+      // Play two beeps for cancellation
+      playTone(400, currentTime, 0.1); // First beep - higher pitch
+      playTone(300, currentTime + 0.12, 0.1); // Second beep - lower pitch, slightly delayed
+    } catch (error) {
+      console.log("Web Audio API failed:", error);
+
+      // Fallback: Use existing audio with different settings
+      try {
+        const audio1 = new Audio("/right-answer-sfx.wav");
+        const audio2 = new Audio("/right-answer-sfx.wav");
+
+        audio1.volume = 0.2;
+        audio1.playbackRate = 1.2;
+        audio1.play();
+
+        // Play second beep after short delay
+        setTimeout(() => {
+          audio2.volume = 0.15;
+          audio2.playbackRate = 0.8;
+          audio2.play();
+        }, 100);
+      } catch (e) {
+        console.log("All audio methods failed:", e);
+        // Last resort: just log
+        console.log("Recording cancelled (no audio)");
+      }
+    }
+  };
+
+  // Play custom submission sound - positive confirmation sound
+  const playSubmissionSound = () => {
+    try {
+      // Use Web Audio API for reliable sound generation
+      const audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+
+      const playTone = (frequency, startTime, duration, volume = 0.2) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+        oscillator.type = "sine";
+
+        // Create envelope for smooth sound
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+
+      const currentTime = audioContext.currentTime;
+
+      // Play ascending chord for positive submission feedback
+      playTone(523, currentTime, 0.15, 0.15); // C5 - first note
+      playTone(659, currentTime + 0.05, 0.15, 0.15); // E5 - second note
+      playTone(784, currentTime + 0.1, 0.2, 0.2); // G5 - final note (longer)
+    } catch (error) {
+      console.log("Web Audio API failed:", error);
+
+      // Fallback: Use existing audio with different settings
+      try {
+        const audio = new Audio("/right-answer-sfx.wav");
+        audio.volume = 0.25;
+        audio.playbackRate = 1.0; // Normal speed for submission
+        audio.play();
+      } catch (e) {
+        console.log("All audio methods failed:", e);
+        // Last resort: just log
+        console.log("Recording submitted (no audio)");
+      }
+    }
   };
 
   // Handle retry
@@ -306,6 +448,7 @@ const DesktopConversationPage = () => {
     setShowResultsDialog(false);
     clearRecording();
     setRecognizedText("");
+    setIsProcessingAudio(false); // Ensure processing state is cleared
     retrySentence();
   };
 
@@ -313,6 +456,7 @@ const DesktopConversationPage = () => {
   const handleContinue = () => {
     setShowResultsDialog(false);
     clearRecording();
+    setIsProcessingAudio(false); // Ensure processing state is cleared
 
     if (
       conversation &&
@@ -346,6 +490,17 @@ const DesktopConversationPage = () => {
 
   // Handle close completion modal
   const handleCloseCompletionModal = () => {
+    console.log("🎉 Navigating to topics page - Progress has been recorded");
+    console.log("Final conversation score:", overallScore);
+    console.log(
+      "Lesson:",
+      lessonNumber,
+      "Topic:",
+      topicId,
+      "Conversation:",
+      conversationId
+    );
+
     setShowCompletionModal(false);
     navigate(`/topics/${lessonNumber}`);
   };
@@ -428,13 +583,21 @@ const DesktopConversationPage = () => {
             currentSentence={currentSentence}
             isRecording={isRecording}
             isSpeaking={isSpeaking}
+            isPaused={isPaused}
+            isPlayingRecording={isPlayingRecording}
+            isRecordingPaused={isRecordingPaused}
             onListenClick={handleListenClick}
             onMicClick={handleMicClick}
             onPlayRecording={playRecordedAudio}
+            onPauseClick={ultraFastPause}
+            onPauseRecording={togglePauseRecordedAudio}
             showRecordingUI={showRecordingUI}
             recordingTime={recordingTime}
             onStopRecording={handleStopRecording}
             onDeleteRecording={handleDeleteRecording}
+            isRecordingCancelled={isRecordingCancelled}
+            audioStream={audioStream}
+            isProcessingAudio={isProcessingAudio}
           />
         </div>
       </div>
@@ -447,11 +610,17 @@ const DesktopConversationPage = () => {
           recognizedText={recognizedText}
           targetText={currentSentence?.english}
           isProcessing={isProcessing}
+          isSpeaking={isSpeaking}
+          isPaused={isPaused}
+          isPlayingRecording={isPlayingRecording}
+          isRecordingPaused={isRecordingPaused}
           onRetry={handleRetry}
           onContinue={handleContinue}
           onClose={() => setShowResultsDialog(false)}
           onListenClick={handleListenClick}
           onPlayRecording={playRecordedAudio}
+          onPauseClick={ultraFastPause}
+          onPauseRecording={togglePauseRecordedAudio}
         />
       )}
 

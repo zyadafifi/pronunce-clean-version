@@ -61,7 +61,7 @@ export const usePronunciationScoring = () => {
       return await useAssemblyAI(audioBlob, targetText);
     } catch (error) {
       console.error("Speech recognition error:", error);
-      return targetText || "I want to learn English by speaking";
+      return ""; // Return empty string instead of target text
     }
   };
 
@@ -204,26 +204,27 @@ export const usePronunciationScoring = () => {
 
       if (pollCount >= maxPolls) {
         console.warn("Transcription polling timeout, using fallback");
-        return targetText || "I want to learn English by speaking";
+        return ""; // Return empty string instead of target text
       }
 
-      return transcript || targetText || "I want to learn English by speaking";
+      return transcript || ""; // Return empty string instead of target text
     } catch (error) {
       console.error("Assembly.ai error:", error);
-      // Fallback to mock text
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          const mockRecognizedText =
-            targetText || "I want to learn English by speaking";
-          resolve(mockRecognizedText);
-        }, 1000);
-      });
+      // Return empty string instead of target text to avoid false high scores
+      return "";
     }
   };
 
   const calculateScore = (recognizedText, targetText) => {
-    const target = targetText.toLowerCase().trim();
-    const recognized = recognizedText.toLowerCase().trim();
+    // Normalize both texts by removing punctuation for better comparison
+    const normalizeText = (text) =>
+      text
+        .toLowerCase()
+        .replace(/[^\w\s]/g, "")
+        .trim();
+
+    const target = normalizeText(targetText);
+    const recognized = normalizeText(recognizedText);
 
     if (target === recognized) {
       return 100;
@@ -241,6 +242,7 @@ export const usePronunciationScoring = () => {
       if (
         recognizedWords.some(
           (recognizedWord) =>
+            recognizedWord === targetWord || // Exact match
             recognizedWord.includes(targetWord) ||
             targetWord.includes(recognizedWord)
         )
@@ -255,14 +257,22 @@ export const usePronunciationScoring = () => {
     // Apply some additional scoring logic
     let finalScore = wordAccuracy;
 
-    // Bonus for exact matches
-    if (recognized.includes(target)) {
-      finalScore = Math.min(100, finalScore + 10);
+    // Bonus for very close matches (all words present, just different order)
+    if (
+      correctWords === totalWords &&
+      recognizedWords.length === targetWords.length
+    ) {
+      finalScore = Math.min(100, finalScore + 5);
     }
 
     // Penalty for very short responses
     if (recognizedWords.length < targetWords.length * 0.5) {
       finalScore *= 0.7;
+    }
+
+    // Penalty for very long responses (too many extra words)
+    if (recognizedWords.length > targetWords.length * 1.5) {
+      finalScore *= 0.9;
     }
 
     return Math.round(Math.max(0, Math.min(100, finalScore)));

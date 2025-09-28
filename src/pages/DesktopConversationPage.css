@@ -392,7 +392,7 @@
 .video-controls .btn-outline-primary:hover {
   background: var(--gradient-primary);
   color: white;
-  /* transform: translateY(-3px) scale(1.02); */
+  transform: translateY(-3px) scale(1.02);
   box-shadow: var(--shadow-primary-lg);
   border-color: transparent;
   cursor: pointer;
@@ -514,16 +514,6 @@
   transition: 0.5s;
 }
 
-.translation-container:hover::before {
-  left: 100%;
-}
-
-.translation-container:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-primary-hover);
-  background: var(--gradient-primary-reverse);
-}
-
 .translation-text {
   font-family: var(--font-arabic);
   font-size: 1.6rem;
@@ -543,29 +533,58 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1.75rem;
+  gap: 1rem;
   margin: 2rem 0 2.5rem 0;
   flex-wrap: wrap;
   padding: 0.5rem;
 }
 
-.control-btn {
-  width: 20px;
-  height: 60px;
-  border-radius: var(--radius-full);
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 1.4rem;
-  background: var(--gradient-primary);
-  color: white;
-  box-shadow: var(--shadow-primary-sm);
-  position: relative;
-  overflow: hidden;
-  margin: 0.375rem;
+/* Control Buttons - Override Framework Styles */
+.control-icons .control-btn,
+.practice-section .control-btn,
+button.control-btn {
+  width: 60px !important;
+  height: 60px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  max-width: 90px !important;
+  max-height: 90px !important;
+  border-radius: var(--radius-full) !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  font-size: 0.9rem !important;
+  background: var(--gradient-primary) !important;
+  color: white !important;
+  box-shadow: var(--shadow-primary-sm) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  margin: 0.25rem !important;
+  padding: 0 !important;
+}
+
+@keyframes pausePulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: var(--shadow-primary-sm);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-primary-lg);
+  }
+}
+
+.control-icons .control-btn i,
+.practice-section .control-btn i,
+button.control-btn i {
+  font-size: 1.3rem !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .control-btn::before {
@@ -608,28 +627,54 @@
 }
 
 .control-btn.speaking {
-  background: var(--gradient-success);
+  background: var(--gradient-primary);
   animation: pulse 1s infinite;
 }
 
-/* Enhanced Microphone Button */
-.mic-button {
-  width: 88px;
-  height: 88px;
-  border-radius: var(--radius-full);
-  border: none;
+.control-btn.paused {
   background: var(--gradient-primary);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 1.8rem;
-  box-shadow: var(--shadow-primary);
-  position: relative;
-  overflow: hidden;
-  margin: 0.5rem;
+}
+
+/* Instant transitions for pause actions */
+.control-btn.instant-pause {
+  transition: none !important;
+}
+
+/* Enhanced Microphone Button */
+/* Microphone Button - Override Framework Styles */
+.mic-button,
+button.mic-button,
+.control-icons .mic-button {
+  width: 90px !important;
+  height: 90px !important;
+  min-width: 60px !important;
+  min-height: 60px !important;
+  max-width: 100px !important;
+  max-height: 100px !important;
+  border-radius: var(--radius-full) !important;
+  border: none !important;
+  background: var(--gradient-primary) !important;
+  color: white !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  font-size: 1.2rem !important;
+  box-shadow: var(--shadow-primary) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  margin: 0.25rem !important;
+  padding: 0 !important;
+}
+
+.mic-button i,
+button.mic-button i,
+.control-icons .mic-button i {
+  font-size: 1.7rem !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .mic-button::before {
@@ -646,6 +691,21 @@
     transparent
   );
   transition: 0.5s;
+}
+
+.mic-button.cancelled::before {
+  content: "\\";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+  transform: rotate(45deg);
+  left: 0;
+  background: transparent;
+  z-index: 5;
 }
 
 .mic-button:hover::before {
@@ -701,9 +761,88 @@
   box-shadow: 0 4px 12px rgba(255, 68, 68, 0.4);
 }
 
+/* Processing State Styles */
+.control-icons.processing-state {
+  opacity: 1;
+}
+
+.control-icons.processing-state .control-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #e9ecef;
+  color: #6c757d;
+  box-shadow: var(--shadow-sm);
+}
+
+.control-icons.processing-state .control-btn.disabled:hover {
+  transform: none;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Spinner Container */
+.spinner-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 90px;
+  height: 90px;
+  position: relative;
+}
+
+/* Ensure spinner matches mic button positioning */
+.control-icons .spinner-container {
+  margin: 0 1rem;
+}
+
 .mic-button.recording:hover {
   background: linear-gradient(135deg, #cc0000 0%, #ff4444 100%);
   box-shadow: 0 6px 16px rgba(255, 68, 68, 0.5);
+}
+
+/* Cancelled Recording State */
+.mic-button.cancelled {
+  background: var(--gradient-danger) !important;
+  position: relative !important;
+  animation: cancelShake 0.6s ease-in-out;
+}
+
+.mic-button.cancelled:hover {
+  background: linear-gradient(135deg, #cc0000 0%, #ff4444 100%) !important;
+}
+
+@keyframes cancelShake {
+  0%,
+  100% {
+    transform: translateX(0) scale(1);
+  }
+  10% {
+    transform: translateX(-3px) scale(1.05);
+  }
+  20% {
+    transform: translateX(3px) scale(0.95);
+  }
+  30% {
+    transform: translateX(-2px) scale(1.02);
+  }
+  40% {
+    transform: translateX(2px) scale(0.98);
+  }
+  50% {
+    transform: translateX(-1px) scale(1.01);
+  }
+  60% {
+    transform: translateX(1px) scale(0.99);
+  }
+  70% {
+    transform: translateX(-0.5px) scale(1.005);
+  }
+  80% {
+    transform: translateX(0.5px) scale(0.995);
+  }
+  90% {
+    transform: translateX(0) scale(1);
+  }
 }
 
 /* Recording UI Container */
@@ -775,17 +914,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  height: 20px;
-  width: 100%;
+  gap: 3px;
+  height: 24px;
+  width: auto;
+  max-width: 200px;
+  margin: 0 auto;
+  padding: 0 12px;
 }
 
 .waveform-bar {
   width: 2px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 1px;
-  transition: height 0.1s ease;
+  transition: height 0.15s ease;
   min-height: 2px;
+  flex-shrink: 0;
+  box-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
 /* Recording Timer */
@@ -1077,6 +1221,7 @@
   background: linear-gradient(135deg, var(--text-muted) 0%, #5a6268 100%);
   color: white;
   box-shadow: var(--shadow-sm);
+  border-radius: 50px;
 }
 
 .dialog-buttons .btn-secondary:hover {
@@ -1090,6 +1235,7 @@
   background: var(--gradient-primary);
   color: white;
   box-shadow: var(--shadow-primary-sm);
+  border-radius: 50px;
 }
 
 .dialog-buttons .btn-primary:hover {
@@ -1100,24 +1246,41 @@
 }
 
 /* Enhanced Control Buttons in Dialog */
-.dialog-controls .control-btn {
-  width: 20px;
-  height: 60px;
-  border-radius: var(--radius-full);
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 1.3rem;
-  background: var(--gradient-primary);
-  color: white;
-  box-shadow: var(--shadow-primary-sm);
-  position: relative;
-  overflow: hidden;
-  flex-shrink: 0;
-  margin: 0.375rem;
+/* Dialog Control Buttons - Override Framework Styles */
+.dialog-controls .control-btn,
+.dialog-content .control-btn,
+.results-dialog .control-btn {
+  width: 60px !important;
+  height: 60px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  max-width: 90px !important;
+  max-height: 90px !important;
+  border-radius: var(--radius-full) !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  font-size: 0.9rem !important;
+  background: var(--gradient-primary) !important;
+  color: white !important;
+  box-shadow: var(--shadow-primary-sm) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+  margin: 0.25rem !important;
+  padding: 0 !important;
+}
+
+.dialog-controls .control-btn i,
+.dialog-content .control-btn i,
+.results-dialog .control-btn i {
+  font-size: 1.3rem !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .dialog-controls .control-btn::before {
@@ -1156,6 +1319,20 @@
   cursor: not-allowed;
   transform: none;
   background: var(--text-muted);
+}
+
+.dialog-controls .control-btn.speaking {
+  background: var(--gradient-primary) !important;
+  animation: pulse 1s infinite;
+}
+
+.dialog-controls .control-btn.paused {
+  background: var(--gradient-primary) !important;
+}
+
+/* Instant transitions for dialog pause actions */
+.dialog-controls .control-btn.instant-pause {
+  transition: none !important;
 }
 
 /* Hidden Pronunciation Score */
@@ -1230,60 +1407,67 @@
   box-shadow: var(--shadow-primary-sm);
 }
 
-/* Bootstrap Modal Overrides for Completion Modal */
-.modal.show {
-  display: block !important;
+/* Completion Modal Styles */
+.completion-modal-content {
+  max-width: 500px;
+  text-align: center;
 }
 
-.modal-content {
-  border-radius: var(--radius-xl);
-  border: none;
-  box-shadow: var(--shadow-primary-hover);
+.completion-modal-content .dialog-icon {
+  background: linear-gradient(--va);
+  color: white;
 }
 
-.modal-header {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.modal-body {
-  padding: 2rem;
-}
-
-.modal-footer {
-  border-top: none;
-  padding-top: 0;
+.completion-content {
+  padding: 1rem 0 2rem 0;
+  margin-left: 50px;
 }
 
 .congrats-img {
-  width: 100px;
-  height: 100px;
-  border-radius: var(--radius-full);
-  margin-bottom: 1rem;
+  width: 120px;
+  height: 120px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-md);
+}
+
+.completion-content p {
+  font-size: 1.1rem;
+  color: var(--text-dark);
+  margin-bottom: 2rem;
+  line-height: 1.6;
 }
 
 .overall-score-container {
-  background: var(--gradient-primary);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
   margin: 1.5rem 0;
-  color: white;
+  color: black;
+  /* box-shadow: var(--shadow-primary-sm); */
 }
 
 .overall-score-container h4 {
   margin: 0 0 0.5rem 0;
   font-size: 1.1rem;
   opacity: 0.9;
+  font-weight: 600;
 }
 
 .overall-score {
-  font-size: 2.5rem;
+  font-size: 2.8rem;
   font-weight: 700;
   margin: 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.continue-to-next-lesson {
+.completion-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.go-to-topics-btn {
   background: var(--gradient-primary);
   border: none;
   padding: 1rem 2.5rem;
@@ -1291,13 +1475,22 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  margin: 0.5rem;
+  color: white;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.continue-to-next-lesson:hover {
+.go-to-topics-btn:hover {
   background: var(--gradient-primary-reverse);
   transform: translateY(-2px);
   box-shadow: var(--shadow-primary-sm);
+  cursor: pointer;
+}
+
+.go-to-topics-btn i {
+  font-size: 1rem;
 }
 
 /* Responsive Design */
@@ -1332,9 +1525,13 @@
   }
 
   .mic-button {
-    width: 76px;
-    height: 76px;
-    font-size: 1.6rem;
+    width: 50px;
+    height: 50px;
+    font-size: 1rem;
+  }
+
+  .mic-button i {
+    font-size: 1rem;
   }
 
   .dialog-content {
