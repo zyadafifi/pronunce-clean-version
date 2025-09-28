@@ -105,6 +105,61 @@
   transform: translateY(-1px);
 }
 
+/* iOS Play Button - Small and Elegant */
+.ios-play-button-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  pointer-events: auto;
+  opacity: 1;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.ios-play-button-overlay.hiding {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  pointer-events: none;
+}
+
+.ios-play-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  color: white;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.ios-play-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
+}
+
+.ios-play-btn:active {
+  transform: scale(0.95);
+}
+
+.ios-play-btn i {
+  margin-left: 2px; /* Slight offset to center the play icon visually */
+}
+
+.ios-play-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 /* Autoplay Fallback Overlay */
 .autoplay-fallback-overlay {
   position: absolute;
