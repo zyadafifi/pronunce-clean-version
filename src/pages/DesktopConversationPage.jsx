@@ -63,7 +63,6 @@ const DesktopConversationPage = () => {
     recordedAudio,
     recordingTime,
     speechDetected,
-    audioStream,
     startRecording,
     stopRecording,
     stopRecordingAndGetBlob,
@@ -596,7 +595,6 @@ const DesktopConversationPage = () => {
             onStopRecording={handleStopRecording}
             onDeleteRecording={handleDeleteRecording}
             isRecordingCancelled={isRecordingCancelled}
-            audioStream={audioStream}
             isProcessingAudio={isProcessingAudio}
           />
         </div>

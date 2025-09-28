@@ -22,10 +22,12 @@ const MobileResultsDialog = ({
 
   // Play audio feedback based on score when dialog opens
   useEffect(() => {
-    if (show && score > 0 && !audioPlayed) {
+    if (show && score !== null && score !== undefined && !audioPlayed) {
+      console.log("🔊 Playing sound for score:", score);
       // Play audio feedback after a short delay
       setTimeout(() => {
         if (score >= 50) {
+          console.log("✅ Playing right answer sound for score:", score);
           // Play success sound for scores 50% and above
           const audio = new Audio("/right-answer-sfx.wav");
           audio.volume = 0.5;
@@ -33,6 +35,7 @@ const MobileResultsDialog = ({
             .play()
             .catch((e) => console.log("Right answer audio play failed:", e));
         } else {
+          console.log("❌ Playing wrong answer sound for score:", score);
           // Play error sound for scores less than 50%
           const audio = new Audio("/wrong-answer-sfx.wav");
           audio.volume = 0.5;
@@ -44,6 +47,13 @@ const MobileResultsDialog = ({
       }, 500);
     }
   }, [show, score, audioPlayed]);
+
+  // Reset audio played state when dialog closes
+  useEffect(() => {
+    if (!show) {
+      setAudioPlayed(false);
+    }
+  }, [show]);
 
   // Animate score circle when dialog opens
   useEffect(() => {

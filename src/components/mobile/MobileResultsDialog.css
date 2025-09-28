@@ -39,7 +39,7 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) scale(0.9);
+  transform: translate(-50%, calc(100vh - 50%));
   background: white;
   border-radius: 20px;
   padding: 24px;
@@ -48,11 +48,11 @@
   max-height: 80vh;
   overflow-y: auto;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.3s ease-out;
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .mobile-dialog-container.active .mobile-dialog-content {
-  transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, -50%);
 }
 
 /* Close Button */
@@ -370,16 +370,7 @@
 }
 
 /* Animations */
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -40%);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%);
-  }
-}
+/* slideUp animation removed - using CSS transitions for bottom-to-top center animation */
 
 @keyframes mobileScoreAppear {
   0% {

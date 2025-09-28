@@ -50,9 +50,20 @@ const MobileLessonPage = () => {
   const [pendingVideoPlay, setPendingVideoPlay] = useState(false);
   const [videoLoadAttempts, setVideoLoadAttempts] = useState(0);
   const [currentVideoSrc, setCurrentVideoSrc] = useState(null);
+  const [autoplayAttempted, setAutoplayAttempted] = useState(false);
 
   // Add ref for managing user interaction
   const userInteractionRef = useRef(false);
+
+  // Video preloading optimization
+  const preloaderRef = useRef(null);
+  const [preloadedVideos, setPreloadedVideos] = useState(new Set());
+
+  // Enhanced video states
+  const [videoBuffering, setVideoBuffering] = useState(false);
+  const [videoCanPlay, setVideoCanPlay] = useState(false);
+  const [autoplayFailed, setAutoplayFailed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Hooks
   const {
@@ -144,10 +155,16 @@ const MobileLessonPage = () => {
     clearSubtitles,
   } = useSubtitleSync(videoRef);
 
-  // Enhanced video play function with user interaction check
-  const safeVideoPlay = async () => {
+  // Enhanced aggressive video play function for autoplay with audio
+  const safeVideoPlay = async (forcePlay = false) => {
     if (!videoRef.current) {
       console.error("Video ref is null");
+      return false;
+    }
+
+    // Don't play if video has ended
+    if (videoRef.current.ended) {
+      console.log("🏁 Video has ended, not attempting to play");
       return false;
     }
 
@@ -155,16 +172,72 @@ const MobileLessonPage = () => {
     console.log("Video ready state:", videoRef.current.readyState);
     console.log("Video network state:", videoRef.current.networkState);
 
+    // Ensure video is unmuted for audio playback
+    videoRef.current.muted = false;
+    videoRef.current.volume = 1.0;
+
     try {
-      await videoRef.current.play();
-      console.log("Video play successful");
+      // Multiple aggressive play attempts
+      const playPromise = videoRef.current.play();
+
+      if (playPromise !== undefined) {
+        await playPromise;
+      }
+
+      console.log("✅ Video play successful with audio");
+      setHasUserInteracted(true);
+      userInteractionRef.current = true;
+
+      // Hide any overlay since video is playing
+      setShowIOSAudioOverlay(false);
+      setPendingVideoPlay(false);
+
       return true;
     } catch (error) {
       console.error("Video play failed:", error.name, error.message);
+
       if (error.name === "NotAllowedError") {
-        console.log("Video play blocked - user interaction required");
-        setShowIOSAudioOverlay(true);
-        setPendingVideoPlay(true);
+        console.log("🔄 Attempting alternative autoplay strategies...");
+
+        // Strategy 1: Try with user interaction simulation
+        try {
+          // Create a fake user interaction context
+          const fakeEvent = new Event("click", { bubbles: true });
+          document.dispatchEvent(fakeEvent);
+
+          // Try play again immediately
+          await videoRef.current.play();
+          console.log("✅ Video play successful after interaction simulation");
+          setHasUserInteracted(true);
+          userInteractionRef.current = true;
+          setShowIOSAudioOverlay(false);
+          setPendingVideoPlay(false);
+          return true;
+        } catch (retryError) {
+          console.log(
+            "🔄 Interaction simulation failed, trying direct approach..."
+          );
+        }
+
+        // Strategy 2: Force play without promise handling
+        try {
+          videoRef.current.play();
+          console.log("✅ Video play successful with direct approach");
+          setHasUserInteracted(true);
+          userInteractionRef.current = true;
+          setShowIOSAudioOverlay(false);
+          setPendingVideoPlay(false);
+          return true;
+        } catch (directError) {
+          console.log("❌ All autoplay strategies failed");
+        }
+
+        // Show fallback UI instead of overlay
+        if (!forcePlay && retryCount < 3) {
+          console.log("Showing autoplay fallback UI");
+          setAutoplayFailed(true);
+          setPendingVideoPlay(true);
+        }
         return false;
       } else if (error.name === "NotSupportedError") {
         console.error("Video format not supported or video failed to load");
@@ -317,21 +390,60 @@ const MobileLessonPage = () => {
           );
         }
 
-        // Wait for video to load before attempting to play
+        // Aggressive autoplay strategy - multiple attempts
         const handleCanPlayThrough = () => {
-          console.log("Video can play through, ready for playback");
-          if (hasUserInteracted || userInteractionRef.current) {
-            setTimeout(() => {
-              safeVideoPlay();
-            }, 100);
-          } else {
-            // Show interaction overlay for first video
-            setShowIOSAudioOverlay(true);
-          }
+          console.log(
+            "🎬 Video can play through, attempting aggressive autoplay..."
+          );
+
+          // Immediate autoplay attempt
+          setTimeout(() => {
+            safeVideoPlay(true);
+          }, 50);
+
+          // Secondary attempt
+          setTimeout(() => {
+            if (
+              videoRef.current &&
+              videoRef.current.paused &&
+              !videoRef.current.ended
+            ) {
+              console.log("🔄 Secondary autoplay attempt...");
+              safeVideoPlay(true);
+            }
+          }, 200);
+
+          // Tertiary attempt
+          setTimeout(() => {
+            if (
+              videoRef.current &&
+              videoRef.current.paused &&
+              !videoRef.current.ended
+            ) {
+              console.log("🔄 Tertiary autoplay attempt...");
+              safeVideoPlay(true);
+            }
+          }, 500);
+
           videoRef.current?.removeEventListener(
             "canplaythrough",
             handleCanPlayThrough
           );
+        };
+
+        // Also try on loadeddata and canplay events for maximum coverage
+        const handleLoadedData = () => {
+          console.log("🎬 Video data loaded, attempting autoplay...");
+          setTimeout(() => {
+            safeVideoPlay(true);
+          }, 100);
+        };
+
+        const handleCanPlay = () => {
+          console.log("🎬 Video can play, attempting autoplay...");
+          setTimeout(() => {
+            safeVideoPlay(true);
+          }, 150);
         };
 
         if (videoRef.current) {
@@ -339,6 +451,26 @@ const MobileLessonPage = () => {
             "canplaythrough",
             handleCanPlayThrough
           );
+          videoRef.current.addEventListener("loadeddata", handleLoadedData);
+          videoRef.current.addEventListener("canplay", handleCanPlay);
+
+          // Cleanup listeners
+          const cleanup = () => {
+            if (videoRef.current) {
+              videoRef.current.removeEventListener(
+                "canplaythrough",
+                handleCanPlayThrough
+              );
+              videoRef.current.removeEventListener(
+                "loadeddata",
+                handleLoadedData
+              );
+              videoRef.current.removeEventListener("canplay", handleCanPlay);
+            }
+          };
+
+          // Set cleanup timeout
+          setTimeout(cleanup, 5000);
         }
       } else {
         console.warn("No video source found for current sentence");
@@ -436,17 +568,146 @@ const MobileLessonPage = () => {
   ]);
 
   // Detect if we're on mobile and set initial overlay state
+  // Early user interaction capture for autoplay
   useEffect(() => {
-    if (isMobile) {
-      // On mobile, always show the overlay initially
-      setShowIOSAudioOverlay(true);
-      setHasUserInteracted(false);
-    } else {
+    if (!isMobile) {
       // On desktop, user interaction might not be required
       setHasUserInteracted(true);
       userInteractionRef.current = true;
+      return;
     }
-  }, [isMobile]);
+
+    // Start with no overlay - we want immediate autoplay
+    setShowIOSAudioOverlay(false);
+    setHasUserInteracted(false);
+
+    // Capture any early user interaction for mobile autoplay - ONLY for video area
+    const captureInteraction = (event) => {
+      // Only capture interactions on the video container, not practice overlay
+      if (
+        event.target.closest(".mobile-practice-overlay") ||
+        event.target.closest(".practice-overlay") ||
+        event.target.closest(".mobile-waveform-container") ||
+        event.target.closest(".control-btn") ||
+        event.target.closest(".mic-btn")
+      ) {
+        return; // Don't interfere with practice overlay interactions
+      }
+
+      console.log("🎯 Early user interaction captured:", event.type);
+      setHasUserInteracted(true);
+      userInteractionRef.current = true;
+      setAutoplayAttempted(false); // Reset to allow autoplay attempts
+
+      // Try to play video if it exists and is paused (but not ended)
+      if (
+        videoRef.current &&
+        videoRef.current.paused &&
+        !videoRef.current.ended
+      ) {
+        console.log("🎬 Attempting autoplay after user interaction...");
+        safeVideoPlay(true);
+      }
+
+      // Remove listeners after first interaction
+      document.removeEventListener("touchstart", captureInteraction, true);
+      document.removeEventListener("touchend", captureInteraction, true);
+      document.removeEventListener("click", captureInteraction, true);
+      document.removeEventListener("keydown", captureInteraction, true);
+      document.removeEventListener("scroll", captureInteraction, true);
+    };
+
+    // Add multiple event listeners to capture any user interaction - but avoid practice overlay
+    document.addEventListener("touchstart", captureInteraction, true);
+    document.addEventListener("touchend", captureInteraction, true);
+    document.addEventListener("click", captureInteraction, true);
+    document.addEventListener("keydown", captureInteraction, true);
+    document.addEventListener("scroll", captureInteraction, true);
+
+    // Mobile-specific setup
+    setupMobileAccessibility();
+
+    // Cleanup
+    return () => {
+      document.removeEventListener("touchstart", captureInteraction, true);
+      document.removeEventListener("touchend", captureInteraction, true);
+      document.removeEventListener("click", captureInteraction, true);
+      document.removeEventListener("keydown", captureInteraction, true);
+      document.removeEventListener("scroll", captureInteraction, true);
+    };
+  }, [isMobile, setupMobileAccessibility]);
+
+  // Video preloading system for smooth playback
+  const preloadNextVideo = useCallback(
+    (nextSentenceIndex) => {
+      if (
+        !conversation?.sentences ||
+        nextSentenceIndex >= conversation.sentences.length
+      ) {
+        return;
+      }
+
+      const nextSentence = conversation.sentences[nextSentenceIndex];
+      if (
+        !nextSentence?.videoSrc ||
+        preloadedVideos.has(nextSentence.videoSrc)
+      ) {
+        return;
+      }
+
+      console.log("🔄 Preloading next video:", nextSentence.videoSrc);
+
+      // Create preloader video element
+      const preloader = document.createElement("video");
+      preloader.preload = "auto";
+      preloader.muted = false;
+      preloader.playsInline = true;
+      preloader.crossOrigin = "anonymous";
+      preloader.style.display = "none";
+
+      // Add mobile-specific attributes
+      preloader.setAttribute("webkit-playsinline", "true");
+      preloader.setAttribute("x5-video-player-type", "h5");
+
+      preloader.onloadeddata = () => {
+        console.log("✅ Video preloaded successfully:", nextSentence.videoSrc);
+        setPreloadedVideos((prev) => new Set([...prev, nextSentence.videoSrc]));
+      };
+
+      preloader.onerror = (e) => {
+        console.warn("❌ Video preload failed:", nextSentence.videoSrc, e);
+      };
+
+      // Set source and start preloading
+      preloader.src = nextSentence.videoSrc;
+      preloader.load();
+
+      // Store reference
+      preloaderRef.current = preloader;
+      document.body.appendChild(preloader);
+
+      // Cleanup after 30 seconds to prevent memory leaks
+      setTimeout(() => {
+        if (preloader && preloader.parentNode) {
+          preloader.parentNode.removeChild(preloader);
+        }
+      }, 30000);
+    },
+    [conversation, preloadedVideos]
+  );
+
+  // Preload next video when current video starts playing
+  useEffect(() => {
+    if (conversation?.sentences && currentSentenceIndex >= 0) {
+      const nextIndex = currentSentenceIndex + 1;
+      if (nextIndex < conversation.sentences.length) {
+        // Delay preloading to not interfere with current video
+        setTimeout(() => {
+          preloadNextVideo(nextIndex);
+        }, 2000);
+      }
+    }
+  }, [currentSentenceIndex, conversation, preloadNextVideo]);
 
   const handleBackClick = () => {
     navigate(`/topics/${lessonNumber}`);
@@ -662,32 +923,7 @@ const MobileLessonPage = () => {
     // Keep practice overlay visible so results dialog can show
   };
 
-  const handleVideoClick = async () => {
-    if (!hasUserInteracted) {
-      setHasUserInteracted(true);
-      userInteractionRef.current = true;
-
-      if (isMobile) {
-        enableVideoAudio();
-        setShowIOSAudioOverlay(false);
-
-        // Unmute video on user interaction
-        if (videoRef.current) {
-          videoRef.current.muted = false;
-          videoRef.current.volume = 1.0;
-        }
-      }
-    }
-
-    // Try to play/pause video
-    if (videoRef.current) {
-      if (videoRef.current.paused) {
-        await safeVideoPlay();
-      } else {
-        pause();
-      }
-    }
-  };
+  // Removed handleVideoClick - video should not be clickable and should not pause
 
   // Cleanup on unmount
   useEffect(() => {
@@ -753,21 +989,41 @@ const MobileLessonPage = () => {
         {/* Back Button */}
         <MobileBackButton onBackClick={handleBackClick} />
 
-        {/* Video Element */}
+        {/* Video Element - Enhanced for Autoplay with Audio */}
         <div className="video-container-wrapper">
           <video
             ref={videoRef}
             className="mobile-lesson-video"
+            autoPlay
             playsInline
-            preload="metadata"
-            muted={!hasUserInteracted}
+            preload="auto"
+            muted={false}
             webkit-playsinline="true"
+            x5-video-player-type="h5"
+            x5-video-player-fullscreen="true"
+            x5-video-orientation="portraint"
             crossOrigin="anonymous"
-            onClick={handleVideoClick}
+            controls={false}
+            style={{ pointerEvents: "none" }}
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={handleTimeUpdate}
             onPlay={handlePlay}
-            onPause={handlePause}
+            onPause={(e) => {
+              // Only prevent pausing if video hasn't ended naturally
+              if (videoRef.current && !videoRef.current.ended) {
+                console.log("🔄 Video paused before completion, resuming...");
+                setTimeout(() => {
+                  if (
+                    videoRef.current &&
+                    videoRef.current.paused &&
+                    !videoRef.current.ended
+                  ) {
+                    videoRef.current.play().catch(console.error);
+                  }
+                }, 10);
+              }
+              handlePause(e);
+            }}
             onEnded={handleVideoEnd}
             onError={(e) => {
               console.error("Video error event:", e.target.error);
@@ -779,33 +1035,108 @@ const MobileLessonPage = () => {
             }}
             onLoadStart={handleLoadStart}
             onCanPlay={handleCanPlay}
-            onLoadedData={() => console.log("Video data loaded")}
-            onCanPlayThrough={() => console.log("Video can play through")}
-            onWaiting={() => console.log("Video waiting for data")}
-            onStalled={() => console.log("Video stalled")}
+            onLoadedData={(e) => {
+              console.log("📹 Video data loaded");
+              setVideoCanPlay(true);
+              setVideoBuffering(false);
+            }}
+            onCanPlayThrough={(e) => {
+              console.log(
+                "📹 Video can play through - ready for smooth playback"
+              );
+              setVideoCanPlay(true);
+              setVideoBuffering(false);
+            }}
+            onWaiting={(e) => {
+              console.log("⏳ Video waiting for data - buffering");
+              setVideoBuffering(true);
+            }}
+            onStalled={(e) => {
+              console.log("⚠️ Video stalled - network issue");
+              setVideoBuffering(true);
+            }}
+            onSuspend={(e) => {
+              console.log("⏸️ Video suspended");
+              setVideoBuffering(false);
+            }}
+            onProgress={(e) => {
+              console.log("📊 Video progress - downloading");
+              if (e.target.buffered.length > 0) {
+                const bufferedEnd = e.target.buffered.end(
+                  e.target.buffered.length - 1
+                );
+                const duration = e.target.duration;
+                if (duration > 0) {
+                  const bufferedPercent = (bufferedEnd / duration) * 100;
+                  console.log(`Buffer: ${bufferedPercent.toFixed(1)}%`);
+                }
+              }
+            }}
+            onSeekStart={() => {
+              console.log("🔍 Video seeking started");
+              setVideoBuffering(true);
+            }}
+            onSeeked={() => {
+              console.log("✅ Video seeking completed");
+              setVideoBuffering(false);
+            }}
           >
             <source src={currentSentence?.videoSrc} type="video/mp4" />
             Your browser does not support the video tag.
           </video>
+
+          {/* Video Loading Indicator */}
+          {(videoLoading || videoBuffering) && !videoError && (
+            <div className="video-loading-overlay">
+              <div className="video-loading-spinner">
+                <i className="fas fa-circle-notch fa-spin"></i>
+              </div>
+              <span>
+                {videoBuffering ? "Buffering..." : "Loading video..."}
+              </span>
+            </div>
+          )}
 
           {/* Video Error Indicator */}
           {videoError && (
             <div className="video-error-overlay">
               <i className="fas fa-exclamation-triangle"></i>
               <span>Video failed to load. Please check your connection.</span>
+              <button
+                className="retry-video-btn"
+                onClick={() => {
+                  setRetryCount((prev) => prev + 1);
+                  if (currentSentence?.videoSrc) {
+                    retryVideoLoad(currentSentence.videoSrc);
+                  }
+                }}
+              >
+                <i className="fas fa-redo"></i> Retry
+              </button>
+            </div>
+          )}
+
+          {/* Autoplay Failed Fallback */}
+          {autoplayFailed && !videoLoading && !videoError && (
+            <div className="autoplay-fallback-overlay">
+              <div className="autoplay-fallback-content">
+                <i className="fas fa-play-circle"></i>
+                <p>Tap to start video with audio</p>
+                <button
+                  className="fallback-play-btn"
+                  onClick={() => {
+                    setAutoplayFailed(false);
+                    safeVideoPlay(true);
+                  }}
+                >
+                  <i className="fas fa-play"></i> Play Video
+                </button>
+              </div>
             </div>
           )}
         </div>
 
-        {/* iOS Audio Enable Overlay */}
-        {showIOSAudioOverlay && (
-          <div className="ios-audio-overlay" onClick={handleIOSAudioClick}>
-            <div className="ios-audio-content">
-              <i className="fas fa-volume-up"></i>
-              <p>Tap to enable audio and start</p>
-            </div>
-          </div>
-        )}
+        {/* iOS Audio Overlay Removed - Direct autoplay enabled */}
 
         {/* Subtitle Container */}
         <MobileSubtitleContainer

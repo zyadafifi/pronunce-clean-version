@@ -19,7 +19,6 @@ const DesktopPracticeSection = ({
   onStopRecording,
   onDeleteRecording,
   isRecordingCancelled,
-  audioStream,
   isProcessingAudio,
 }) => {
   return (
@@ -158,7 +157,6 @@ const DesktopPracticeSection = ({
           recordingTime={recordingTime}
           onStopRecording={onStopRecording}
           onDeleteRecording={onDeleteRecording}
-          audioStream={audioStream}
         />
       )}
     </div>
