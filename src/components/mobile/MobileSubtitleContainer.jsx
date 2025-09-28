@@ -7,21 +7,6 @@ const MobileSubtitleContainer = ({
   showVideoSubtitles = false,
   isMobile = false,
 }) => {
-  // Debug logging
-  console.log("🟣 MobileSubtitleContainer render:", {
-    showVideoSubtitles,
-    isMobile,
-    hasCurrentSubtitle: !!currentSubtitle,
-    currentSubtitle: currentSubtitle
-      ? {
-          englishText: currentSubtitle.englishText,
-          arabicText: currentSubtitle.arabicText,
-        }
-      : null,
-    fallbackEnglish: englishText,
-    fallbackArabic: arabicText,
-  });
-
   // Use video subtitles if available and we're on mobile, otherwise fallback to static text
   const displayEnglish =
     showVideoSubtitles && isMobile && currentSubtitle

@@ -36,6 +36,7 @@ const MobilePracticeOverlay = ({
   const waveformAnimationRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
+  const isRecordingCancelledRef = useRef(false); // Use ref to track cancellation
 
   // AssemblyAI API Key - You can set this as an environment variable
   // For development, you can replace this with your actual API key
@@ -45,6 +46,102 @@ const MobilePracticeOverlay = ({
 
   // Check if API key is valid (AssemblyAI keys are typically longer)
   const isApiKeyValid = ASSEMBLYAI_API_KEY && ASSEMBLYAI_API_KEY.length > 20;
+
+  // Sound effects functions
+  const playCancellationSound = useCallback(() => {
+    try {
+      // Use Web Audio API for reliable sound generation
+      const audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+
+      // Create a sequence of descending tones for cancellation
+      const frequencies = [800, 600, 400];
+      const duration = 0.15;
+
+      frequencies.forEach((frequency, index) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const startTime = audioContext.currentTime + index * duration;
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+        oscillator.type = "sine";
+
+        // Create envelope for smooth sound
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, startTime + 0.01);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      });
+    } catch (error) {
+      console.warn("Web Audio API not available, using fallback sound");
+      // Fallback: Use existing audio with different settings
+      try {
+        const audio1 = new Audio("/right-answer-sfx.wav");
+        const audio2 = new Audio("/right-answer-sfx.wav");
+
+        audio1.volume = 0.2;
+        audio1.playbackRate = 1.2;
+        audio1.play();
+
+        setTimeout(() => {
+          audio2.volume = 0.15;
+          audio2.playbackRate = 0.8;
+          audio2.play();
+        }, 100);
+      } catch (fallbackError) {
+        console.warn("Audio fallback failed:", fallbackError);
+      }
+    }
+  }, []);
+
+  const playSubmissionSound = useCallback(() => {
+    try {
+      // Use Web Audio API for reliable sound generation
+      const audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+
+      // Create an ascending tone sequence for submission
+      const frequencies = [400, 600, 800];
+      const duration = 0.12;
+
+      frequencies.forEach((frequency, index) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const startTime = audioContext.currentTime + index * duration;
+        const volume = 0.15 - index * 0.03; // Slightly decreasing volume
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+        oscillator.type = "sine";
+
+        // Create envelope for smooth sound
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      });
+    } catch (error) {
+      console.warn("Web Audio API not available, using fallback sound");
+      // Fallback: Use existing audio with different settings
+      try {
+        const audio = new Audio("/right-answer-sfx.wav");
+        audio.volume = 0.25;
+        audio.playbackRate = 1.0; // Normal speed for submission
+        audio.play();
+      } catch (fallbackError) {
+        console.warn("Audio fallback failed:", fallbackError);
+      }
+    }
+  }, []);
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -158,6 +255,9 @@ const MobilePracticeOverlay = ({
     try {
       cleanup();
 
+      // Reset cancellation flag
+      isRecordingCancelledRef.current = false;
+
       // Notify parent that recording is starting
       onMicClick();
 
@@ -213,6 +313,16 @@ const MobilePracticeOverlay = ({
       };
 
       mediaRecorderRef.current.onstop = async () => {
+        // Don't process if recording was cancelled
+        if (isRecordingCancelledRef.current) {
+          console.log("🚫 Recording was cancelled, skipping processing");
+          stream.getTracks().forEach((track) => track.stop());
+          // Reset the cancellation flag for next recording
+          isRecordingCancelledRef.current = false;
+          return;
+        }
+
+        console.log("✅ Recording stopped normally, processing...");
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
         setRecordedBlob(blob);
 
@@ -247,24 +357,51 @@ const MobilePracticeOverlay = ({
     }
   }, [animateWaveform, cleanup, onMicClick]);
 
-  // Stop recording
+  // Stop recording with submission sound
   const stopRecording = useCallback(() => {
+    console.log("📤 Submitting recording...");
+
+    // Play submission sound effect
+    playSubmissionSound();
+
     if (
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state === "recording"
     ) {
+      console.log("🛑 Stopping MediaRecorder for submission...");
       mediaRecorderRef.current.stop();
     }
     cleanup();
     // Notify parent that recording is stopping
     onStopRecording();
-  }, [cleanup, onStopRecording]);
+  }, [cleanup, onStopRecording, playSubmissionSound]);
 
-  // Cancel recording
+  // Cancel recording with sound effect
   const cancelRecording = useCallback(() => {
+    console.log("🗑️ Cancelling recording...");
+
+    // Play cancellation sound effect
+    playCancellationSound();
+
+    // Set cancellation flag BEFORE stopping the recorder
+    isRecordingCancelledRef.current = true;
+
+    // Stop the MediaRecorder if it's recording
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
+      console.log("🛑 Stopping MediaRecorder...");
+      mediaRecorderRef.current.stop();
+    }
+
+    // Reset recording state
     setRecordedBlob(null);
     cleanup();
-  }, [cleanup]);
+
+    // Notify parent that recording was cancelled
+    onDeleteRecording();
+  }, [cleanup, onDeleteRecording, playCancellationSound]);
 
   // Calculate pronunciation score
   const calculatePronunciationScore = useCallback((recognized, expected) => {
@@ -491,7 +628,6 @@ const MobilePracticeOverlay = ({
                 onClick={() => handleListen(false)}
               >
                 <i className="fas fa-volume-up"></i>
-                <span>Listen</span>
               </button>
 
               <button className="mic-btn" onClick={startRecording}>
@@ -503,7 +639,6 @@ const MobilePracticeOverlay = ({
                 onClick={handlePlayRecorded}
               >
                 <i className="fas fa-headphones"></i>
-                <span>Listen</span>
               </button>
             </div>
           )}
@@ -515,11 +650,6 @@ const MobilePracticeOverlay = ({
                 className="mobile-pause-btn"
                 onClick={cancelRecording}
                 title="Delete recording"
-                onTouchStart={(e) => e.preventDefault()}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  cancelRecording();
-                }}
               >
                 <i className="fa-regular fa-trash-can"></i>
               </button>
@@ -551,11 +681,6 @@ const MobilePracticeOverlay = ({
                 className="mobile-send-btn"
                 onClick={stopRecording}
                 title="Stop recording"
-                onTouchStart={(e) => e.preventDefault()}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  stopRecording();
-                }}
               >
                 <i className="fas fa-paper-plane"></i>
               </button>
@@ -570,7 +695,6 @@ const MobilePracticeOverlay = ({
                 onClick={() => handleListen(false)}
               >
                 <i className="fas fa-volume-up"></i>
-                <span>Listen</span>
               </button>
 
               <button className="mic-btn processing" disabled>
@@ -591,7 +715,6 @@ const MobilePracticeOverlay = ({
                 onClick={handlePlayRecorded}
               >
                 <i className="fas fa-headphones"></i>
-                <span>Listen</span>
               </button>
             </div>
           )}

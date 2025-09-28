@@ -645,7 +645,6 @@
 
 .mobile-practice-overlay .control-btn i {
   font-size: 24px;
-  color: var(--sna-primary);
 }
 
 .mobile-practice-overlay .control-btn span {
@@ -1177,18 +1176,22 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  height: 15px;
+  height: 24px;
   width: 100%;
-  max-width: 180px;
+  max-width: 200px;
+  margin: 0 auto;
+  padding: 0 12px;
 }
 
 .mobile-waveform-bar {
-  width: 3px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 2px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 1px;
   transition: height 0.15s ease;
+  min-height: 2px;
   height: 6px;
-  margin-top: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
 .mobile-waveform-bar.active {
@@ -1232,6 +1235,9 @@
 .mobile-pause-btn,
 .mobile-send-btn {
   transition: all 0.3s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .mobile-send-btn {
@@ -1404,6 +1410,7 @@
 
   .mobile-waveform-bars {
     gap: 2px;
+    max-width: 160px;
   }
 
   .mobile-waveform-bar {
@@ -1426,6 +1433,7 @@
 
   .mobile-waveform-bars {
     gap: 1px;
+    max-width: 140px;
   }
 }
 

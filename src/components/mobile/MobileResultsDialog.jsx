@@ -26,15 +26,19 @@ const MobileResultsDialog = ({
       // Play audio feedback after a short delay
       setTimeout(() => {
         if (score >= 50) {
-          // Play success sound
+          // Play success sound for scores 50% and above
           const audio = new Audio("/right-answer-sfx.wav");
           audio.volume = 0.5;
-          audio.play().catch((e) => console.log("Audio play failed:", e));
+          audio
+            .play()
+            .catch((e) => console.log("Right answer audio play failed:", e));
         } else {
-          // Play error sound
+          // Play error sound for scores less than 50%
           const audio = new Audio("/wrong-answer-sfx.wav");
           audio.volume = 0.5;
-          audio.play().catch((e) => console.log("Audio play failed:", e));
+          audio
+            .play()
+            .catch((e) => console.log("Wrong answer audio play failed:", e));
         }
         setAudioPlayed(true);
       }, 500);

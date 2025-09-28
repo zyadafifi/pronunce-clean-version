@@ -37,12 +37,6 @@ const useSubtitleSync = (videoRef) => {
     if (newSubtitleIndex !== currentSubtitleIndexRef.current) {
       currentSubtitleIndexRef.current = newSubtitleIndex;
       setCurrentSubtitle(subtitle);
-
-      if (subtitle) {
-        console.log(
-          `🟣 Subtitle updated: "${subtitle.englishText}" | "${subtitle.arabicText}"`
-        );
-      }
     }
   }, [subtitles, isSubtitlesActive, getCurrentSubtitle, videoRef]);
 
@@ -54,7 +48,6 @@ const useSubtitleSync = (videoRef) => {
       clearInterval(syncIntervalRef.current);
     }
 
-    console.log("🟣 Starting subtitle synchronization");
     setIsSubtitlesActive(true);
 
     syncIntervalRef.current = setInterval(() => {
@@ -71,7 +64,6 @@ const useSubtitleSync = (videoRef) => {
       syncIntervalRef.current = null;
     }
     setIsSubtitlesActive(false);
-    console.log("🟣 Stopped subtitle synchronization");
   }, []);
 
   /**
@@ -83,7 +75,6 @@ const useSubtitleSync = (videoRef) => {
    */
   const loadSubtitlesForSentence = useCallback(
     async (lessonNumber, topicId, conversationId, sentenceIndex) => {
-      console.log(`🟣 Loading subtitles for sentence ${sentenceIndex}`);
       setSubtitleError(null);
 
       try {
@@ -102,22 +93,13 @@ const useSubtitleSync = (videoRef) => {
           setCurrentSubtitle(null);
           currentSubtitleIndexRef.current = -1;
 
-          console.log(
-            `🟣 Loaded ${loadedSubtitles.length} subtitles for sentence ${sentenceIndex}`
-          );
-
           // Start sync after loading
           startSubtitleSync();
         } else {
-          console.warn(`🟣 No subtitles loaded for sentence ${sentenceIndex}`);
           setSubtitles([]);
           setCurrentSubtitle(null);
         }
       } catch (error) {
-        console.error(
-          `🟣 Failed to load subtitles for sentence ${sentenceIndex}:`,
-          error
-        );
         setSubtitleError(error.message);
         setSubtitles([]);
         setCurrentSubtitle(null);
@@ -135,7 +117,6 @@ const useSubtitleSync = (videoRef) => {
     setCurrentSubtitle(null);
     setSubtitleError(null);
     currentSubtitleIndexRef.current = -1;
-    console.log("🟣 Cleared all subtitles");
   }, [stopSubtitleSync]);
 
   /**

@@ -18,8 +18,6 @@ const useSRTParser = () => {
     const subtitles = [];
     const blocks = srtContent.trim().split(/\n\s*\n/);
 
-    console.log(`🟣 Parsing SRT with ${blocks.length} blocks`);
-
     // The SRT file has 6 blocks: first 3 are English, last 3 are Arabic
     if (blocks.length >= 6) {
       const englishBlocks = blocks.slice(0, 3); // First 3 blocks
@@ -59,12 +57,6 @@ const useSRTParser = () => {
               const arabicText = arabicLines.slice(2).join(" ").trim();
 
               if (englishText && arabicText) {
-                console.log(
-                  `🟣 Parsed subtitle ${
-                    i + 1
-                  }: "${englishText}" | "${arabicText}" (${startTime}ms - ${endTime}ms)`
-                );
-
                 subtitles.push({
                   startTime,
                   endTime,
@@ -78,12 +70,8 @@ const useSRTParser = () => {
         }
       }
     } else {
-      console.warn(
-        `🟣 SRT file has unexpected format: ${blocks.length} blocks instead of 6`
-      );
     }
 
-    console.log(`🟣 Successfully parsed ${subtitles.length} subtitles`);
     return subtitles;
   }, []);
 
@@ -122,8 +110,6 @@ const useSRTParser = () => {
         const fileName = `lesson${lessonNumber}_topic${topicId}_conversation${conversationId}_sentence${sentenceIndex}.srt`;
         const filePath = `/subtitles/${fileName}`;
 
-        console.log(`Loading SRT file: ${filePath}`);
-
         const response = await fetch(filePath);
 
         if (!response.ok) {
@@ -139,10 +125,6 @@ const useSRTParser = () => {
         }
 
         const parsedSubtitles = parseSRT(srtContent);
-
-        console.log(
-          `Successfully parsed ${parsedSubtitles.length} subtitles from ${fileName}`
-        );
 
         setIsLoading(false);
         return parsedSubtitles;
