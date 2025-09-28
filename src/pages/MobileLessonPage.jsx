@@ -6,6 +6,7 @@ import { useNewSpeechRecognition } from "../hooks/useNewSpeechRecognition";
 import { usePronunciationScoring } from "../hooks/usePronunciationScoring";
 import { useVideoPlayer } from "../hooks/useVideoPlayer";
 import { useMobileFeatures } from "../hooks/useMobileFeatures";
+import useSubtitleSync from "../hooks/useSubtitleSync";
 import MobileVideoContainer from "../components/mobile/MobileVideoContainer";
 import MobileProgressBar from "../components/mobile/MobileProgressBar";
 import MobileBackButton from "../components/mobile/MobileBackButton";
@@ -130,6 +131,17 @@ const MobileLessonPage = () => {
     showMobileAlert,
     hideMobileAlert,
   } = useMobileFeatures();
+
+  // Subtitle synchronization hook
+  const {
+    currentSubtitle,
+    subtitles,
+    isSubtitlesActive,
+    isLoading: subtitleLoading,
+    error: subtitleError,
+    loadSubtitlesForSentence,
+    clearSubtitles,
+  } = useSubtitleSync(videoRef);
 
   // Enhanced video play function with user interaction check
   const safeVideoPlay = async () => {
@@ -288,6 +300,16 @@ const MobileLessonPage = () => {
         setVideoLoadAttempts(0);
         retryVideoLoad(currentSentence.videoSrc);
 
+        // Load subtitles for current sentence (mobile only)
+        if (isMobile) {
+          loadSubtitlesForSentence(
+            parseInt(lessonNumber),
+            parseInt(topicId),
+            parseInt(conversationId),
+            currentSentenceIndex + 1 // SRT files are 1-based
+          );
+        }
+
         // Wait for video to load before attempting to play
         const handleCanPlayThrough = () => {
           console.log("Video can play through, ready for playback");
@@ -321,6 +343,11 @@ const MobileLessonPage = () => {
     currentVideoSrc,
     hasUserInteracted,
     retryVideoLoad,
+    isMobile,
+    lessonNumber,
+    topicId,
+    conversationId,
+    loadSubtitlesForSentence,
   ]);
 
   // Handle conversation completion and update topic/lesson progress
@@ -540,6 +567,16 @@ const MobileLessonPage = () => {
         // Hide practice overlay and replay overlay
         setShowPracticeOverlay(false);
         setShowReplayOverlay(false);
+
+        // Load subtitles for next sentence (mobile only)
+        if (isMobile) {
+          loadSubtitlesForSentence(
+            parseInt(lessonNumber),
+            parseInt(topicId),
+            parseInt(conversationId),
+            nextSentenceIndex + 1 // SRT files are 1-based
+          );
+        }
 
         // Auto-play next video (only if user has interacted)
         if (hasUserInteracted || userInteractionRef.current) {
@@ -766,6 +803,9 @@ const MobileLessonPage = () => {
         <MobileSubtitleContainer
           englishText={currentSentence?.english}
           arabicText={currentSentence?.arabic}
+          currentSubtitle={currentSubtitle}
+          showVideoSubtitles={true}
+          isMobile={isMobile}
         />
 
         {/* Replay Overlay */}

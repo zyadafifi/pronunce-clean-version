@@ -1447,7 +1447,7 @@
 /* Subtitle Container - Simple Design */
 .subtitle-container {
   position: absolute;
-  bottom: 80px;
+  bottom: 750px;
   left: 20px;
   right: 20px;
   z-index: 10;
@@ -1463,7 +1463,7 @@
 
 .subtitle-english {
   color: white;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1.2;
   margin-bottom: 2px;
@@ -1471,8 +1471,9 @@
 
 .subtitle-arabic {
   color: rgba(255, 255, 255, 0.8);
-  font-size: 13px;
-  font-weight: 400;
+  padding-top: 10px;
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.2;
   direction: rtl;
   text-align: center;

@@ -279,40 +279,7 @@
   object-fit: cover;
 }
 
-/* Subtitle Container */
-.subtitle-container {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  max-width: 90%;
-  text-align: center;
-  pointer-events: none;
-}
 
-.subtitle-content {
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: var(--radius-sm);
-  padding: 0.75rem 1rem;
-  backdrop-filter: blur(10px);
-}
-
-.subtitle-english {
-  color: white;
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.subtitle-arabic {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.9rem;
-  font-family: var(--font-arabic);
-  direction: rtl;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-}
 
 /* Video Error Overlay */
 .video-error-overlay {
